@@ -1,0 +1,106 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile and stats",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "points": { "type": "number" },
+        "noseCoins": { "type": "number" },
+        "isAdmin": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "points", "noseCoins"]
+    },
+    "Match": {
+      "title": "World Cup Match",
+      "description": "Information about a World Cup match",
+      "type": "object",
+      "properties": {
+        "teamA": { "type": "string" },
+        "teamB": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "stage": { "type": "string" },
+        "round": { "type": "number" },
+        "scoreA": { "type": "number" },
+        "scoreB": { "type": "number" },
+        "finished": { "type": "boolean" }
+      },
+      "required": ["teamA", "teamB", "date", "stage", "finished"]
+    },
+    "Bet": {
+      "title": "User Bet",
+      "description": "A user's prediction for a match",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "matchId": { "type": "string" },
+        "predictedScoreA": { "type": "number" },
+        "predictedScoreB": { "type": "number" },
+        "pointsEarned": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "matchId", "predictedScoreA", "predictedScoreB"]
+    },
+    "ManuBet": {
+      "title": "Parallel Bet Option",
+      "description": "A parallel bet option in ManuBet",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "active": { "type": "boolean" },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "label": { "type": "string" },
+              "odds": { "type": "number" }
+            }
+          }
+        }
+      },
+      "required": ["title", "active", "options"]
+    },
+    "UserManuBet": {
+      "title": "User ManuBet Placement",
+      "description": "A user's bet placement in ManuBet",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "manuBetId": { "type": "string" },
+        "optionLabel": { "type": "string" },
+        "amount": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "won", "lost"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "manuBetId", "optionLabel", "amount", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Matches list"
+    },
+    "/bets/{betId}": {
+      "schema": "Bet",
+      "description": "User match predictions"
+    },
+    "/manuBets/{manuBetId}": {
+      "schema": "ManuBet",
+      "description": "Available ManuBet options"
+    },
+    "/userManuBets/{userBetId}": {
+      "schema": "UserManuBet",
+      "description": "User placements in ManuBet"
+    }
+  }
+}

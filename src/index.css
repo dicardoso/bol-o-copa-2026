@@ -1,0 +1,50 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-editorial-navy: #001F3F;
+  --color-editorial-deep: #001529;
+  --color-editorial-accent: #2ECC40;
+  --color-editorial-gold: #FFD700;
+  --color-editorial-glass: rgba(255, 255, 255, 0.05);
+}
+
+@layer base {
+  body {
+    @apply bg-editorial-deep font-sans antialiased text-white select-none relative min-h-screen;
+    background: radial-gradient(circle at top right, #003366, #001529);
+    background-attachment: fixed;
+  }
+
+  /* Editorial Card Style */
+  .sidebar-card {
+    @apply bg-white/5 border border-white/10 rounded-[20px] p-6 backdrop-blur-sm;
+  }
+
+  .section-title {
+    @apply text-[11px] uppercase tracking-[2px] text-white/40 mb-4 block font-bold;
+  }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+  }
+
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
