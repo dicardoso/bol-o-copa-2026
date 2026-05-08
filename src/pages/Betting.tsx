@@ -62,7 +62,8 @@ export const Betting = () => {
   }, [activeRound, user]);
 
   const handleScoreChange = (matchId: string, team: 'A' | 'B', value: string) => {
-    const score = parseInt(value) || 0;
+    let score = parseInt(value) || 0;
+    if (score > 99) score = 99;
     setUserBets(prev => ({
       ...prev,
       [matchId]: {
@@ -177,6 +178,7 @@ export const Betting = () => {
                 <input 
                   type="number" 
                   min="0"
+                  max="99"
                   className="w-16 h-16 bg-slate-100 border-2 border-slate-200 rounded-xl text-center text-3xl font-black focus:border-editorial-accent outline-none transition-all"
                   placeholder="0"
                   value={userBets[match.id]?.predictedScoreA ?? ''}
@@ -187,6 +189,7 @@ export const Betting = () => {
                 <input 
                   type="number" 
                   min="0"
+                  max="99"
                   className="w-16 h-16 bg-slate-100 border-2 border-slate-200 rounded-xl text-center text-3xl font-black focus:border-editorial-accent outline-none transition-all"
                   placeholder="0"
                   value={userBets[match.id]?.predictedScoreB ?? ''}

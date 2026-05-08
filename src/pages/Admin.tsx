@@ -361,6 +361,8 @@ export const Admin = () => {
                           <div className="flex items-center gap-2">
                             <input
                               type="number"
+                              min="0"
+                              max="99"
                               placeholder="0"
                               className="w-12 bg-black border border-slate-700 rounded-lg p-2 text-center text-white font-black"
                               defaultValue={m.scoreA}
@@ -369,6 +371,8 @@ export const Admin = () => {
                             <span className="text-xl font-black text-slate-700">X</span>
                             <input
                               type="number"
+                              min="0"
+                              max="99"
                               placeholder="0"
                               className="w-12 bg-black border border-slate-700 rounded-lg p-2 text-center text-white font-black"
                               defaultValue={m.scoreB}
@@ -401,12 +405,18 @@ export const Admin = () => {
                           </div>
                           <button
                             onClick={() => {
-                              const a = (document.getElementById(`scoreA-${m.id}`) as HTMLInputElement).value;
-                              const b = (document.getElementById(`scoreB-${m.id}`) as HTMLInputElement).value;
+                              const aVal = (document.getElementById(`scoreA-${m.id}`) as HTMLInputElement).value;
+                              const bVal = (document.getElementById(`scoreB-${m.id}`) as HTMLInputElement).value;
+                              const a = parseInt(aVal) || 0;
+                              const b = parseInt(bVal) || 0;
+                              if (a > 99 || b > 99) {
+                                alert("O placar máximo permitido é 99!");
+                                return;
+                              }
                               setConfirmModal({
                                 isOpen: true,
                                 match: m,
-                                scores: { a: parseInt(a), b: parseInt(b) }
+                                scores: { a, b }
                               });
                             }}
                             className={cn(

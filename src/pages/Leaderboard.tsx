@@ -2,13 +2,16 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Trophy, Search, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, getCountFromServer, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { useAuth } from '../context/AuthContext';
 
 export const Leaderboard = () => {
+  const { user, profile } = useAuth();
   const [filter, setFilter] = useState('geral');
   const [ranking, setRanking] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [myRank, setMyRank] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchRanking = async () => {
@@ -22,6 +25,20 @@ export const Leaderboard = () => {
           ...doc.data()
         }));
         setRanking(data);
+
+        // Calcular minha posição
+        if (user) {
+          const myEntry = data.find(r => r.id === user.uid);
+          if (myEntry) {
+            setMyRank(myEntry.pos);
+          } else {
+            // Se não estiver no top 50, conta quantos têm mais pontos
+            const userPoints = profile?.points || 0;
+            const countQ = query(collection(db, 'users'), where('points', '>', userPoints));
+            const countSnapshot = await getCountFromServer(countQ);
+            setMyRank(countSnapshot.data().count + 1);
+          }
+        }
       } catch (err) {
         console.error("Erro ao buscar ranking:", err);
       } finally {
@@ -29,7 +46,7 @@ export const Leaderboard = () => {
       }
     };
     fetchRanking();
-  }, [filter]);
+  }, [filter, user, profile]);
 
   if (loading) return <div className="flex items-center justify-center h-64 text-white">Calculando ranking...</div>;
 
@@ -83,8 +100,10 @@ export const Leaderboard = () => {
         <div className="sidebar-card">
            <span className="section-title">Minha Posição</span>
            <div className="flex flex-col justify-center h-full">
-              <p className="text-4xl font-black mb-1">--</p>
-              <p className="text-[10px] uppercase font-bold text-white/40 tracking-widest">Faça seus palpites!</p>
+              <p className="text-4xl font-black mb-1">{myRank ? `#${myRank}` : '--'}</p>
+              <p className="text-[10px] uppercase font-bold text-white/40 tracking-widest">
+                {profile?.points || 0} pontos acumulados
+              </p>
            </div>
         </div>
       </div>
