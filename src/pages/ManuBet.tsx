@@ -325,6 +325,7 @@ export const ManuBet = () => {
                       type="number"
                       value={betAmount || ''}
                       onChange={(e) => setBetAmount(parseInt(e.target.value) || 0)}
+                      max={profile?.noseCoins || 0}
                       className="w-full bg-slate-950 border-2 border-slate-800 rounded-2xl py-4 pl-14 pr-4 text-2xl font-black text-white focus:border-yellow-500 outline-none transition-colors"
                       placeholder="0"
                     />
@@ -332,28 +333,29 @@ export const ManuBet = () => {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 overflow-hidden">
                     <p className="text-[10px] font-bold text-slate-500 uppercase">Ganhos em Potencial</p>
-                    <p className="text-xl font-black text-green-500">
-                      {Math.floor(betAmount * bettingService.calculateCurrentOdds(selectedBet, selectedBet.selected.label)).toLocaleString()} NC
+                    <p className="text-xl font-black text-green-500 truncate" title={Math.floor(betAmount * bettingService.calculateCurrentOdds(selectedBet, selectedBet.selected.label)).toLocaleString()}>
+                      {Math.floor(betAmount * bettingService.calculateCurrentOdds(selectedBet, selectedBet.selected.label)).toLocaleString()}
                     </p>
                   </div>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800">
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 overflow-hidden">
                     <p className="text-[10px] font-bold text-slate-500 uppercase">Novo Saldo</p>
-                    <p className="text-xl font-black text-white">
-                      {((profile?.noseCoins || 0) - betAmount).toLocaleString()} NC
+                    <p className={cn("text-xl font-black truncate", (profile?.noseCoins || 0) - betAmount < 0 ? "text-red-500" : "text-white")} title={((profile?.noseCoins || 0) - betAmount).toLocaleString()}>
+                      {((profile?.noseCoins || 0) - betAmount).toLocaleString()}
                     </p>
                   </div>
                 </div>
 
                 <button
                   onClick={handlePlaceBet}
-                  disabled={placing || betAmount <= 0 || isExpired(selectedBet.matchId) || !!getUserBetForOffer(selectedBet.id)}
+                  disabled={placing || betAmount <= 0 || betAmount > (profile?.noseCoins || 0) || isExpired(selectedBet.matchId) || !!getUserBetForOffer(selectedBet.id)}
                   className="w-full bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-black py-4 rounded-2xl shadow-xl shadow-yellow-500/20 transition-all active:scale-95 uppercase tracking-widest text-lg disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {placing ? <Loader2 className="animate-spin" /> :
                     isExpired(selectedBet.matchId) ? 'Encerrado' :
-                      !!getUserBetForOffer(selectedBet.id) ? 'Aposta Já Realizada' : 'Confirmar Aposta'}
+                      betAmount > (profile?.noseCoins || 0) ? 'Saldo Insuficiente' :
+                        !!getUserBetForOffer(selectedBet.id) ? 'Aposta Já Realizada' : 'Confirmar Aposta'}
                 </button>
               </div>
             </motion.div>
