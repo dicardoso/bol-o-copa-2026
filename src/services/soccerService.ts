@@ -100,8 +100,8 @@ export const soccerService = {
 
         const exactMatch = bet.predictedScoreA === scoreA && bet.predictedScoreB === scoreB;
         const correctResult = (bet.predictedScoreA > bet.predictedScoreB && scoreA > scoreB) ||
-                            (bet.predictedScoreA < bet.predictedScoreB && scoreA < scoreB) ||
-                            (bet.predictedScoreA === bet.predictedScoreB && scoreA === scoreB);
+          (bet.predictedScoreA < bet.predictedScoreB && scoreA < scoreB) ||
+          (bet.predictedScoreA === bet.predictedScoreB && scoreA === scoreB);
 
         if (exactMatch) {
           newPoints = 25;
