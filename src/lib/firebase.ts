@@ -1,12 +1,23 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { doc, getDocFromServer, getFirestore } from 'firebase/firestore';
+import { connectAuthEmulator, getAuth } from 'firebase/auth';
+import { connectFirestoreEmulator, doc, getDocFromServer, getFirestore } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-// CRITICAL: The app will break without specifying the database ID from config
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// In dev mode, use the default emulator database (no named database ID needed).
+// In production, use the named database from config.
+const isEmulated = import.meta.env.DEV;
+export const db = isEmulated
+  ? getFirestore(app)
+  : getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+if (isEmulated) {
+  connectFirestoreEmulator(db, 'localhost', 8080);
+  connectAuthEmulator(auth, 'http://localhost:9099', { disableWarnings: true });
+  console.log('[Firebase] Using local emulators (Firestore :8080, Auth :9099)');
+}
 
 /**
  * Validates the connection to Firestore as required by system constraints.

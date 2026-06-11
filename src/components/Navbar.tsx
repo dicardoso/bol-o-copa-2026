@@ -20,7 +20,7 @@ export const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
     { id: 'dashboard', label: 'Início', icon: Home },
     { id: 'betting', label: 'Todos os Jogos', icon: Calendar },
     { id: 'leaderboard', label: 'Ranking', icon: Trophy },
-    { id: 'manubet', label: 'ManuBet', icon: Coins },
+    { id: 'manubet', label: 'ManucaBet', icon: Coins },
     { id: 'profile', label: 'Perfil', icon: User },
   ];
 
@@ -44,8 +44,8 @@ export const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
               onClick={() => setActiveTab(item.id)}
               className={cn(
                 "w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all group relative",
-                activeTab === item.id 
-                  ? "text-editorial-gold" 
+                activeTab === item.id
+                  ? "text-editorial-gold"
                   : "text-white/60 hover:text-white"
               )}
             >
@@ -60,12 +60,12 @@ export const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
 
         <div className="p-4 border-t border-white/5 space-y-4">
           <div className="hidden lg:flex items-center gap-3 px-4 py-2 bg-editorial-gold/10 border border-editorial-gold/20 rounded-full">
-             <NoseCoin size={24} />
-             <div className="flex flex-col">
-               <span className="font-mono font-bold text-editorial-gold text-sm">{profile?.noseCoins?.toLocaleString() || 0} NC</span>
-             </div>
+            <NoseCoin size={24} />
+            <div className="flex flex-col">
+              <span className="font-mono font-bold text-editorial-gold text-sm">{profile?.noseCoins?.toLocaleString() || 0} NC</span>
+            </div>
           </div>
-          <button 
+          <button
             onClick={() => signOut(auth)}
             className="w-full flex items-center gap-4 px-4 py-3 text-white/40 hover:text-red-400 transition-colors"
           >
@@ -80,15 +80,15 @@ export const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
         <div className="flex items-center gap-2">
           <span className="font-extrabold text-white tracking-tighter uppercase">COPA<span className="text-editorial-gold">2026</span></span>
         </div>
-        
+
         <div className="flex items-center gap-4">
-           <div className="flex items-center gap-2 bg-editorial-gold/15 px-3 py-1.5 rounded-full border border-editorial-gold/30">
-             <NoseCoin size={18} />
-             <span className="text-sm font-mono font-bold text-editorial-gold">{profile?.noseCoins?.toLocaleString() || 0}</span>
-           </div>
-           <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white">
-             {isMenuOpen ? <X /> : <Menu />}
-           </button>
+          <div className="flex items-center gap-2 bg-editorial-gold/15 px-3 py-1.5 rounded-full border border-editorial-gold/30">
+            <NoseCoin size={18} />
+            <span className="text-sm font-mono font-bold text-editorial-gold">{profile?.noseCoins?.toLocaleString() || 0}</span>
+          </div>
+          <button onClick={() => setIsMenuOpen(!isMenuOpen)} className="text-white">
+            {isMenuOpen ? <X /> : <Menu />}
+          </button>
         </div>
       </nav>
 
@@ -117,7 +117,7 @@ export const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
                 <span className="font-medium text-lg">{item.label}</span>
               </button>
             ))}
-            <button 
+            <button
               onClick={() => {
                 signOut(auth);
                 setIsMenuOpen(false);

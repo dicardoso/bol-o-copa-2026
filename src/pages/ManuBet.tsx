@@ -45,7 +45,7 @@ export const ManuBet = () => {
   const isExpired = (matchId: string) => {
     const match = matches.find(m => m.id === matchId);
     if (!match) return false;
-    return new Date(match.date) <= new Date();
+    return match.finished || new Date(match.date) <= new Date();
   };
 
   const getUserBetForOffer = (offerId: string) => {

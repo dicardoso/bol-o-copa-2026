@@ -409,7 +409,7 @@ export const Admin = () => {
                               const bVal = (document.getElementById(`scoreB-${m.id}`) as HTMLInputElement).value;
                               const a = parseInt(aVal) || 0;
                               const b = parseInt(bVal) || 0;
-                              if (a > 99 || b > 99) {
+                              if (a < 0 || b < 0 || a > 99 || b > 99) {
                                 alert("O placar máximo permitido é 99!");
                                 return;
                               }

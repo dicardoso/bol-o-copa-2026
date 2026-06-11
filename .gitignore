@@ -4,4 +4,8 @@ dist/
 coverage/
 .DS_Store
 *.log
-.env*
+.env
+.env.local
+.env.*.local
+
+emulator-data/

@@ -7,6 +7,8 @@ import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
 import { doc, setDoc, getDocs, collection, query, where } from 'firebase/firestore';
 
+import { CountdownTimer } from '../components/CountdownTimer';
+
 export const Betting = () => {
   const { user } = useAuth();
   const [activeRound, setActiveRound] = useState<number | string | 'all'>(1);
@@ -35,7 +37,7 @@ export const Betting = () => {
               if (stageLower === 'quarters_finals') return matchStage.includes('quarter') || matchStage === 'qf';
               if (stageLower === 'semi_finals') return (matchStage.includes('semi') || matchStage === 'sf') && !matchStage.includes('quarter');
               if (stageLower === 'finals') return (matchStage === 'final' || matchStage === 'finals' || matchStage.includes('third') || matchStage.includes('3rd')) && !matchStage.includes('semi') && !matchStage.includes('quarter');
-              
+
               return matchStage === stageLower || m.round === activeRound;
             });
           }
@@ -109,15 +111,15 @@ export const Betting = () => {
       <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-4 border-b border-white/5">
         <div>
           <h2 className="text-3xl font-black text-white uppercase tracking-tighter">
-            {activeRound === 'all' ? 'Todos os Jogos' : 
-             typeof activeRound === 'number' ? `Rodada ${activeRound}` : 
-             activeRound.replace('_', ' ')} 
+            {activeRound === 'all' ? 'Todos os Jogos' :
+              typeof activeRound === 'number' ? `Rodada ${activeRound}` :
+                activeRound.replace('_', ' ')}
             <span className="text-white/40 font-medium text-lg ml-2">Copa 2026</span>
           </h2>
         </div>
         <div className="flex bg-white/5 p-1 rounded-xl overflow-x-auto gap-1">
           {[1, 2, 3, 'L32', 'L16', 'Quarters_finals', 'Semi_finals', 'Finals', 'all'].map((r) => (
-            <button 
+            <button
               key={r.toString()}
               onClick={() => setActiveRound(r as any)}
               className={cn(
@@ -125,13 +127,13 @@ export const Betting = () => {
                 activeRound === r ? "bg-editorial-gold text-editorial-navy" : "text-white/60 hover:text-white"
               )}
             >
-              {r === 'all' ? 'Ver Todos' : 
-               r === 'L32' ? '1/16' :
-               r === 'L16' ? '1/8' :
-               r === 'Quarters_finals' ? 'Quartas' :
-               r === 'Semi_finals' ? 'Semi' :
-               r === 'Finals' ? 'Finais' :
-               `R${r}`}
+              {r === 'all' ? 'Ver Todos' :
+                r === 'L32' ? '1/16' :
+                  r === 'L16' ? '1/8' :
+                    r === 'Quarters_finals' ? 'Quartas' :
+                      r === 'Semi_finals' ? 'Semi' :
+                        r === 'Finals' ? 'Finais' :
+                          `R${r}`}
             </button>
           ))}
         </div>
@@ -139,9 +141,7 @@ export const Betting = () => {
 
       {/* Countdown Warning */}
       <div className="flex items-center justify-center p-3 rounded-xl">
-        <p className="text-xs font-mono font-bold text-editorial-gold uppercase tracking-[2px]">
-          FECHA EM: 02d 14h 05m 33s
-        </p>
+        <CountdownTimer targetDate="2026-06-22T14:00:00Z" />
       </div>
 
       <div className="flex flex-col gap-8 max-w-4xl mx-auto">
@@ -155,9 +155,9 @@ export const Betting = () => {
           >
             {/* Top gradient line */}
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-green-500" />
-            
+
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-[2px] mb-8">
-               {match.stage?.toUpperCase() || 'GRUPO A'} • {match.venue.toUpperCase()} • {new Date(match.date).toLocaleDateString()}
+              {match.stage?.toUpperCase() || 'GRUPO A'} • {match.venue.toUpperCase()} • {new Date(match.date).toLocaleDateString()}
             </div>
 
             <div className="w-full flex items-center justify-between gap-4 md:gap-12">
@@ -175,8 +175,8 @@ export const Betting = () => {
 
               {/* Score Input */}
               <div className="flex items-center gap-4">
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="0"
                   max="99"
                   className="w-16 h-16 bg-slate-100 border-2 border-slate-200 rounded-xl text-center text-3xl font-black focus:border-editorial-accent outline-none transition-all"
@@ -186,8 +186,8 @@ export const Betting = () => {
                   disabled={match.finished}
                 />
                 <span className="text-slate-300 font-light italic">VS</span>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   min="0"
                   max="99"
                   className="w-16 h-16 bg-slate-100 border-2 border-slate-200 rounded-xl text-center text-3xl font-black focus:border-editorial-accent outline-none transition-all"
@@ -212,26 +212,26 @@ export const Betting = () => {
             </div>
 
             <div className="w-full mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
-               <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-black block">Status do Jogo</span>
-                  <span className={cn("font-extrabold text-sm uppercase", match.finished ? "text-red-500" : "text-green-500")}>
-                    {match.finished ? `Encerrado (${match.scoreA} x ${match.scoreB})` : 'Aberto para Palpites'}
-                  </span>
-               </div>
-               {!match.finished && (
-                 <button 
+              <div>
+                <span className="text-[10px] text-slate-400 uppercase font-black block">Status do Jogo</span>
+                <span className={cn("font-extrabold text-sm uppercase", match.finished ? "text-red-500" : "text-green-500")}>
+                  {match.finished ? `Encerrado (${match.scoreA} x ${match.scoreB})` : 'Aberto para Palpites'}
+                </span>
+              </div>
+              {!match.finished && (
+                <button
                   onClick={() => saveBet(match.id)}
                   disabled={saving === match.id}
                   className="bg-editorial-accent hover:bg-green-600 text-white font-black px-8 py-3 rounded-xl transition-all shadow-lg shadow-green-900/20 active:scale-95 uppercase text-xs tracking-widest disabled:opacity-50"
-                 >
-                    {userBets[match.id]?.updatedAt ? 'Atualizar' : 'Confirmar'}
-                 </button>
-               )}
-               {match.finished && userBets[match.id] && (
-                 <div className="flex items-center gap-2 text-editorial-navy font-bold text-xs uppercase bg-slate-100 px-4 py-2 rounded-lg">
-                    <CheckCircle2 size={16} className="text-green-600" /> Palpite Registrado
-                 </div>
-               )}
+                >
+                  {userBets[match.id]?.updatedAt ? 'Atualizar' : 'Confirmar'}
+                </button>
+              )}
+              {match.finished && userBets[match.id] && (
+                <div className="flex items-center gap-2 text-editorial-navy font-bold text-xs uppercase bg-slate-100 px-4 py-2 rounded-lg">
+                  <CheckCircle2 size={16} className="text-green-600" /> Palpite Registrado
+                </div>
+              )}
             </div>
           </motion.div>
         ))}
@@ -239,9 +239,9 @@ export const Betting = () => {
 
       {/* Info Footer */}
       <div className="max-w-4xl mx-auto mt-12 p-8 bg-editorial-navy/20 rounded-[32px] border border-white/5 text-center">
-         <p className="text-white/40 text-xs font-bold uppercase tracking-[2px]">
-            Lembre-se: Você pode alterar seus palpites até o início de cada partida.
-         </p>
+        <p className="text-white/40 text-xs font-bold uppercase tracking-[2px]">
+          Lembre-se: Você pode alterar seus palpites até o início de cada partida.
+        </p>
       </div>
     </div>
   );
