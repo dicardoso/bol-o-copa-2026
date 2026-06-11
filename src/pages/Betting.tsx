@@ -77,8 +77,16 @@ export const Betting = () => {
     }));
   };
 
+  const isMatchLocked = (match: any): boolean =>
+    match.finished || new Date() >= new Date(match.date);
+
   const saveBet = async (matchId: string) => {
     if (!user) return;
+    const match = matches.find(m => m.id === matchId);
+    if (match && isMatchLocked(match)) {
+      alert('O jogo já começou. Palpites encerrados.');
+      return;
+    }
     const bet = userBets[matchId];
     if (!bet || bet.predictedScoreA === undefined || bet.predictedScoreB === undefined) {
       alert('Preencha os dois placares!');
@@ -183,7 +191,7 @@ export const Betting = () => {
                   placeholder="0"
                   value={userBets[match.id]?.predictedScoreA ?? ''}
                   onChange={(e) => handleScoreChange(match.id, 'A', e.target.value)}
-                  disabled={match.finished}
+                  disabled={isMatchLocked(match)}
                 />
                 <span className="text-slate-300 font-light italic">VS</span>
                 <input
@@ -194,7 +202,7 @@ export const Betting = () => {
                   placeholder="0"
                   value={userBets[match.id]?.predictedScoreB ?? ''}
                   onChange={(e) => handleScoreChange(match.id, 'B', e.target.value)}
-                  disabled={match.finished}
+                  disabled={isMatchLocked(match)}
                 />
               </div>
 
@@ -214,11 +222,19 @@ export const Betting = () => {
             <div className="w-full mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-black block">Status do Jogo</span>
-                <span className={cn("font-extrabold text-sm uppercase", match.finished ? "text-red-500" : "text-green-500")}>
-                  {match.finished ? `Encerrado (${match.scoreA} x ${match.scoreB})` : 'Aberto para Palpites'}
+                <span className={cn("font-extrabold text-sm uppercase",
+                  match.finished ? "text-red-500" :
+                  isMatchLocked(match) ? "text-orange-500" :
+                  "text-green-500"
+                )}>
+                  {match.finished
+                    ? `Encerrado (${match.scoreA} x ${match.scoreB})`
+                    : isMatchLocked(match)
+                      ? 'Em andamento — palpites encerrados'
+                      : 'Aberto para Palpites'}
                 </span>
               </div>
-              {!match.finished && (
+              {!isMatchLocked(match) && (
                 <button
                   onClick={() => saveBet(match.id)}
                   disabled={saving === match.id}
@@ -227,7 +243,7 @@ export const Betting = () => {
                   {userBets[match.id]?.updatedAt ? 'Atualizar' : 'Confirmar'}
                 </button>
               )}
-              {match.finished && userBets[match.id] && (
+              {isMatchLocked(match) && userBets[match.id] && (
                 <div className="flex items-center gap-2 text-editorial-navy font-bold text-xs uppercase bg-slate-100 px-4 py-2 rounded-lg">
                   <CheckCircle2 size={16} className="text-green-600" /> Palpite Registrado
                 </div>
