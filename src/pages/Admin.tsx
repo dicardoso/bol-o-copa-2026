@@ -11,6 +11,8 @@ import { CountdownTimer } from '../components/CountdownTimer';
 export const Admin = () => {
   const [activeSubTab, setActiveSubTab] = useState('overview');
   const [syncing, setSyncing] = useState(false);
+  const [rebuilding, setRebuilding] = useState(false);
+  const [rebuildProgress, setRebuildProgress] = useState<{ current: number; total: number } | null>(null);
   const [bootstrapping, setBootstrapping] = useState(false);
   const [counts, setCounts] = useState({ users: 0, matches: 0, bets: 0, manuBets: 0, userManuBets: 0 });
   const [matches, setMatches] = useState<any[]>([]);
@@ -123,6 +125,24 @@ export const Admin = () => {
       alert('Falha na sincronização. Verifique a chave da API no .env.');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleRebuildHistory = async () => {
+    if (!confirm('Isso vai sobrescrever todos os snapshots existentes. Continuar?')) return;
+    setRebuilding(true);
+    setRebuildProgress(null);
+    try {
+      const count = await soccerService.rebuildRankingHistory((current, total) =>
+        setRebuildProgress({ current, total })
+      );
+      alert(`Histórico reconstruído com ${count} jogos.`);
+    } catch (err) {
+      alert('Erro ao reconstruir histórico.');
+      console.log(err)
+    } finally {
+      setRebuilding(false);
+      setRebuildProgress(null);
     }
   };
 
@@ -256,7 +276,7 @@ export const Admin = () => {
                   <div className="space-y-4">
                     <button
                       onClick={handleSync}
-                      disabled={syncing}
+                      disabled={true}
                       className="w-full text-left p-4 bg-slate-950 hover:bg-slate-900 rounded-2xl text-sm text-slate-300 flex items-center justify-between border border-slate-800 transition-all group"
                     >
                       <span className="flex items-center gap-3">
@@ -264,6 +284,33 @@ export const Admin = () => {
                         Sincronizar Dados da API
                       </span>
                       {syncing ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} className="text-slate-500 group-hover:text-blue-500" />}
+                    </button>
+                    <button
+                      onClick={handleRebuildHistory}
+                      disabled={true} // Ou apenas disabled
+                      className="w-full text-left p-4 bg-slate-950 rounded-2xl text-sm text-slate-300 flex flex-col border border-slate-800 transition-all hover:bg-slate-900 
+                                  disabled:opacity-50 disabled:hover:bg-slate-900 disabled:cursor-not-allowed"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="flex items-center gap-3">
+                          <CheckCircle size={18} className="text-purple-500" />
+                          Reconstruir Histórico de Ranking
+                        </span>
+                        {rebuilding ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} className="text-slate-500 group-hover:text-purple-500" />}
+                      </div>
+                      {rebuildProgress && (
+                        <div className="mt-2 w-full">
+                          <div className="h-1 bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-purple-500 transition-all"
+                              style={{ width: `${(rebuildProgress.current / rebuildProgress.total) * 100}%` }}
+                            />
+                          </div>
+                          <span className="text-[10px] text-slate-500 mt-1">
+                            {rebuildProgress.current}/{rebuildProgress.total} jogos processados
+                          </span>
+                        </div>
+                      )}
                     </button>
                     <button className="w-full text-left p-4 bg-slate-950 hover:bg-slate-900 rounded-2xl text-sm text-slate-300 flex items-center justify-between border border-slate-800 transition-all group">
                       <span className="flex items-center gap-3">

@@ -167,7 +167,7 @@ export const Betting = () => {
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-green-500" />
 
             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-[2px] mb-4">
-              {match.stage?.toUpperCase() || 'GRUPO A'} • {match.venue.toUpperCase()} • {new Date(match.date).toLocaleDateString()}
+              {match.stage?.toUpperCase() || 'GRUPO A'} • {match.venue.toUpperCase()} • {new Date(match.date).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })} • {new Date(match.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}
             </div>
 
             {!match.finished && (
@@ -235,8 +235,8 @@ export const Betting = () => {
                 <span className="text-[10px] text-slate-400 uppercase font-black block">Status do Jogo</span>
                 <span className={cn("font-extrabold text-sm uppercase",
                   match.finished ? "text-red-500" :
-                  isMatchLocked(match) ? "text-orange-500" :
-                  "text-green-500"
+                    isMatchLocked(match) ? "text-orange-500" :
+                      "text-green-500"
                 )}>
                   {match.finished
                     ? `Encerrado (${match.scoreA} x ${match.scoreB})`

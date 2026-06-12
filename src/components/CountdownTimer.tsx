@@ -24,7 +24,7 @@ export const CountdownTimer = ({ targetDate, onExpire }: CountdownTimerProps) =>
   useEffect(() => {
     const initial = calculateTimeLeft();
     setTimeLeft(initial);
-    
+
     if (!initial && onExpire) {
       onExpire();
     }

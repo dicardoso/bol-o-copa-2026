@@ -120,9 +120,105 @@ export const soccerService = {
           await setDoc(userRef, { points: increment(pointDiff) }, { merge: true });
         }
       }
+      // Snapshot do ranking após resolver o jogo
+      await soccerService.saveRankingSnapshot(matchId, scoreA, scoreB);
+
       return true;
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, `matches/${matchId}`);
+    }
+  },
+
+  async rebuildRankingHistory(onProgress?: (current: number, total: number) => void) {
+    // Buscar jogos encerrados em ordem cronológica
+    const matchesSnap = await getDocs(query(
+      collection(db, 'matches'),
+      where('finished', '==', true),
+      orderBy('date', 'asc')
+    ));
+    const finishedMatches = matchesSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+
+    // Buscar todos os palpites com pontos
+    const betsSnap = await getDocs(collection(db, 'bets'));
+    // Agrupa por matchId → userId → pointsEarned
+    const betsByMatch: Record<string, Record<string, number>> = {};
+    betsSnap.docs.forEach(d => {
+      const b = d.data();
+      if (!b.matchId || !b.userId) return;
+      if (!betsByMatch[b.matchId]) betsByMatch[b.matchId] = {};
+      betsByMatch[b.matchId][b.userId] = b.pointsEarned || 0;
+    });
+
+    // Buscar todos os usuários para nomes e fotos
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const usersMap: Record<string, { displayName: string; photoURL: string }> = {};
+    usersSnap.docs.forEach(d => {
+      const u = d.data();
+      usersMap[d.id] = { displayName: u.displayName || 'Usuário', photoURL: u.photoURL || '' };
+    });
+
+    // Acumula pontos jogo a jogo e salva snapshot
+    const cumulative: Record<string, number> = {};
+    for (let i = 0; i < finishedMatches.length; i++) {
+      const match = finishedMatches[i];
+      const matchBets = betsByMatch[match.id] || {};
+      for (const [userId, pts] of Object.entries(matchBets)) {
+        cumulative[userId] = (cumulative[userId] || 0) + pts;
+      }
+
+      const entries = Object.entries(cumulative)
+        .sort(([uidA, a], [uidB, b]) => b - a || uidA.localeCompare(uidB))
+        .map(([userId, points], idx) => ({
+          userId,
+          displayName: usersMap[userId]?.displayName ?? 'Usuário',
+          photoURL: usersMap[userId]?.photoURL ?? '',
+          points,
+          position: idx + 1,
+        }));
+
+      await setDoc(doc(db, 'rankingHistory', match.id), {
+        matchId: match.id,
+        matchLabel: `${match.teamA} x ${match.teamB}`,
+        scoreA: match.scoreA,
+        scoreB: match.scoreB,
+        resolvedAt: match.updatedAt || match.date,
+        entries,
+      });
+
+      onProgress?.(i + 1, finishedMatches.length);
+    }
+
+    return finishedMatches.length;
+  },
+
+  async saveRankingSnapshot(matchId: string, scoreA: number, scoreB: number) {
+    try {
+      const matchSnap = await getDocs(query(collection(db, 'matches')));
+      const match = matchSnap.docs.find(d => d.id === matchId)?.data();
+      const matchLabel = match ? `${match.teamA} x ${match.teamB}` : matchId;
+
+      const usersSnap = await getDocs(query(collection(db, 'users'), orderBy('points', 'desc')));
+      const sorted = usersSnap.docs
+        .map(d => ({ id: d.id, ...d.data() as any }))
+        .sort((a, b) => (b.points || 0) - (a.points || 0) || a.id.localeCompare(b.id));
+      const entries = sorted.map((u, i) => ({
+        userId: u.id,
+        displayName: u.displayName || 'Usuário',
+        photoURL: u.photoURL || '',
+        points: u.points || 0,
+        position: i + 1,
+      }));
+
+      await setDoc(doc(db, 'rankingHistory', matchId), {
+        matchId,
+        matchLabel,
+        scoreA,
+        scoreB,
+        resolvedAt: new Date().toISOString(),
+        entries,
+      });
+    } catch (err) {
+      console.error('Erro ao salvar snapshot do ranking:', err);
     }
   }
 };

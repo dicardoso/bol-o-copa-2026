@@ -76,6 +76,12 @@ service cloud.firestore {
       allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
     }
 
+    // --- Ranking History ---
+    match /rankingHistory/{snapshotId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // --- Safety Net ---
     match /{document=**} {
       allow read, write: if false;
