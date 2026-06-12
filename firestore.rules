@@ -15,6 +15,12 @@ service cloud.firestore {
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
 
+    // --- App Config ---
+    match /config/{configId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
     // --- Users ---
     function isValidUser(data) {
       return data.email is string && data.points is number && data.noseCoins is number;

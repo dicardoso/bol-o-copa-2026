@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { ShieldCheck, Users, Calendar, Database, Send, Plus, Search, MoreVertical, Edit, Trash, CheckCircle, Loader2, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { collection, getCountFromServer } from 'firebase/firestore';
+import { collection, getCountFromServer, doc, setDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { soccerService } from '../services/soccerService';
 import { bettingService } from '../services/bettingService';
@@ -11,6 +11,7 @@ import { CountdownTimer } from '../components/CountdownTimer';
 export const Admin = () => {
   const [activeSubTab, setActiveSubTab] = useState('overview');
   const [syncing, setSyncing] = useState(false);
+  const [forcingUpdate, setForcingUpdate] = useState(false);
   const [bootstrapping, setBootstrapping] = useState(false);
   const [counts, setCounts] = useState({ users: 0, matches: 0, bets: 0, manuBets: 0, userManuBets: 0 });
   const [matches, setMatches] = useState<any[]>([]);
@@ -123,6 +124,18 @@ export const Admin = () => {
       alert('Falha na sincronização. Verifique a chave da API no .env.');
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleForceUpdate = async () => {
+    setForcingUpdate(true);
+    try {
+      await setDoc(doc(db, 'config', 'app'), { version: __APP_BUILD_TIME__ });
+      alert('Atualização forçada! Todos os clientes com versão antiga serão notificados.');
+    } catch (err) {
+      alert('Erro ao forçar atualização.');
+    } finally {
+      setForcingUpdate(false);
     }
   };
 
@@ -265,12 +278,16 @@ export const Admin = () => {
                       </span>
                       {syncing ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} className="text-slate-500 group-hover:text-blue-500" />}
                     </button>
-                    <button className="w-full text-left p-4 bg-slate-950 hover:bg-slate-900 rounded-2xl text-sm text-slate-300 flex items-center justify-between border border-slate-800 transition-all group">
+                    <button
+                      onClick={handleForceUpdate}
+                      disabled={forcingUpdate}
+                      className="w-full text-left p-4 bg-slate-950 hover:bg-slate-900 rounded-2xl text-sm text-slate-300 flex items-center justify-between border border-slate-800 transition-all group"
+                    >
                       <span className="flex items-center gap-3">
-                        <CheckCircle size={18} className="text-green-500" />
-                        Limpar Cache Global
+                        <Send size={18} className="text-yellow-500" />
+                        Forçar Atualização nos Clientes
                       </span>
-                      <CheckCircle size={16} className="text-slate-500 group-hover:text-green-500" />
+                      {forcingUpdate ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} className="text-slate-500 group-hover:text-yellow-500" />}
                     </button>
                   </div>
                 </div>
