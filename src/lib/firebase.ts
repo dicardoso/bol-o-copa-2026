@@ -8,7 +8,7 @@ export const auth = getAuth(app);
 
 // In dev mode, use the default emulator database (no named database ID needed).
 // In production, use the named database from config.
-const isEmulated = import.meta.env.DEV;
+const isEmulated = !import.meta.env.DEV;
 export const db = isEmulated
   ? getFirestore(app)
   : getFirestore(app, firebaseConfig.firestoreDatabaseId);
