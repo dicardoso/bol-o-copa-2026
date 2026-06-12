@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Sword, Save, Trash2, Clock, MapPin, CheckCircle2 } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -16,6 +16,8 @@ export const Betting = () => {
   const [userBets, setUserBets] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [, setTick] = useState(0);
+  const forceUpdate = useCallback(() => setTick(t => t + 1), []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -164,9 +166,18 @@ export const Betting = () => {
             {/* Top gradient line */}
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-green-500" />
 
-            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-[2px] mb-8">
+            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-[2px] mb-4">
               {match.stage?.toUpperCase() || 'GRUPO A'} • {match.venue.toUpperCase()} • {new Date(match.date).toLocaleDateString()}
             </div>
+
+            {!match.finished && (
+              <div className="mb-6">
+                <CountdownTimer
+                  targetDate={match.date}
+                  onExpire={forceUpdate}
+                />
+              </div>
+            )}
 
             <div className="w-full flex items-center justify-between gap-4 md:gap-12">
               {/* Team A */}
