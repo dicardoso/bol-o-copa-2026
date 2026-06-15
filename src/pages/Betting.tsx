@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { Sword, Save, Trash2, Clock, MapPin, CheckCircle2 } from 'lucide-react';
+import { Sword, Save, Trash2, Clock, MapPin, CheckCircle2, EyeOff, Eye } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { soccerService } from '../services/soccerService';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +16,7 @@ export const Betting = () => {
   const [userBets, setUserBets] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [hideFinished, setHideFinished] = useState(true);
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick(t => t + 1), []);
 
@@ -97,13 +98,15 @@ export const Betting = () => {
 
     setSaving(matchId);
     try {
-      const betId = `${user.uid}_${matchId}`;
-      await setDoc(doc(db, 'bets', betId), {
+      const now = new Date().toISOString();
+      const betData = {
         ...bet,
-        updatedAt: new Date().toISOString(),
-        createdAt: bet.createdAt || new Date().toISOString()
-      }, { merge: true });
-      alert('Palpite salvo com sucesso!');
+        updatedAt: now,
+        createdAt: bet.createdAt || now,
+      };
+      const betId = `${user.uid}_${matchId}`;
+      await setDoc(doc(db, 'bets', betId), betData, { merge: true });
+      setUserBets(prev => ({ ...prev, [matchId]: betData }));
     } catch (err) {
       console.error(err);
       alert('Erro ao salvar palpite. Verifique se o jogo já começou.');
@@ -111,6 +114,19 @@ export const Betting = () => {
       setSaving(null);
     }
   };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const visibleMatches = hideFinished
+    ? matches.filter(m => {
+        const matchDay = new Date(m.date);
+        matchDay.setHours(0, 0, 0, 0);
+        return !m.finished || matchDay >= today;
+      })
+    : matches;
+
+  const hiddenCount = matches.length - visibleMatches.length;
 
   if (loading) {
     return <div className="flex items-center justify-center h-64 text-white">Carregando jogos...</div>;
@@ -126,6 +142,17 @@ export const Betting = () => {
                 activeRound.replace('_', ' ')}
             <span className="text-white/40 font-medium text-lg ml-2">Copa 2026</span>
           </h2>
+          <button
+            onClick={() => setHideFinished(h => !h)}
+            className="mt-2 flex items-center gap-2 text-xs font-bold text-white/40 hover:text-white/70 transition-colors uppercase tracking-widest"
+          >
+            {hideFinished ? <Eye size={14} /> : <EyeOff size={14} />}
+            {hideFinished
+              ? hiddenCount > 0
+                ? `${hiddenCount} encerrado${hiddenCount !== 1 ? 's' : ''} oculto${hiddenCount !== 1 ? 's' : ''} — mostrar`
+                : 'Encerrados ocultos'
+              : 'Ocultar encerrados'}
+          </button>
         </div>
         <div className="flex bg-white/5 p-1 rounded-xl overflow-x-auto gap-1">
           {[1, 2, 3, 'L32', 'L16', 'Quarters_finals', 'Semi_finals', 'Finals', 'all'].map((r) => (
@@ -155,13 +182,13 @@ export const Betting = () => {
       </div>
 
       <div className="flex flex-col gap-8 max-w-4xl mx-auto">
-        {matches.map((match, i) => (
+        {visibleMatches.map((match, i) => (
           <motion.div
             key={match.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="match-card bg-white text-editorial-navy rounded-[24px] p-8 relative overflow-hidden shadow-2xl flex flex-col items-center"
+            className="match-card bg-white text-editorial-navy rounded-[24px] p-4 sm:p-8 relative overflow-hidden shadow-2xl flex flex-col items-center"
           >
             {/* Top gradient line */}
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-green-500" />
@@ -182,34 +209,34 @@ export const Betting = () => {
             <div className="w-full flex items-center justify-between gap-4 md:gap-12">
               {/* Team A */}
               <div className="flex-1 flex flex-col items-center">
-                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-4xl mb-4 shadow-lg border-4 border-white overflow-hidden p-3">
+                <div className="w-14 h-14 sm:w-20 sm:h-20 bg-slate-100 rounded-full flex items-center justify-center text-2xl sm:text-4xl mb-3 sm:mb-4 shadow-lg border-4 border-white overflow-hidden p-2 sm:p-3">
                   {match.flagA?.startsWith('http') ? (
                     <img src={match.flagA} alt={match.teamA} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                   ) : (
                     match.flagA
                   )}
                 </div>
-                <h4 className="text-lg font-black tracking-tighter uppercase text-center">{match.teamA}</h4>
+                <h4 className="text-xs sm:text-lg font-black tracking-tighter uppercase text-center leading-tight">{match.teamA}</h4>
               </div>
 
               {/* Score Input */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2 sm:gap-4">
                 <input
                   type="number"
                   min="0"
                   max="99"
-                  className="w-16 h-16 bg-slate-100 border-2 border-slate-200 rounded-xl text-center text-3xl font-black focus:border-editorial-accent outline-none transition-all"
+                  className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 border-2 border-slate-200 rounded-xl text-center text-2xl sm:text-3xl font-black focus:border-editorial-accent outline-none transition-all"
                   placeholder="0"
                   value={userBets[match.id]?.predictedScoreA ?? ''}
                   onChange={(e) => handleScoreChange(match.id, 'A', e.target.value)}
                   disabled={isMatchLocked(match)}
                 />
-                <span className="text-slate-300 font-light italic">VS</span>
+                <span className="text-slate-300 font-light italic text-sm sm:text-base">VS</span>
                 <input
                   type="number"
                   min="0"
                   max="99"
-                  className="w-16 h-16 bg-slate-100 border-2 border-slate-200 rounded-xl text-center text-3xl font-black focus:border-editorial-accent outline-none transition-all"
+                  className="w-12 h-12 sm:w-16 sm:h-16 bg-slate-100 border-2 border-slate-200 rounded-xl text-center text-2xl sm:text-3xl font-black focus:border-editorial-accent outline-none transition-all"
                   placeholder="0"
                   value={userBets[match.id]?.predictedScoreB ?? ''}
                   onChange={(e) => handleScoreChange(match.id, 'B', e.target.value)}
@@ -219,14 +246,14 @@ export const Betting = () => {
 
               {/* Team B */}
               <div className="flex-1 flex flex-col items-center">
-                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center text-4xl mb-4 shadow-lg border-4 border-white overflow-hidden p-3">
+                <div className="w-14 h-14 sm:w-20 sm:h-20 bg-slate-100 rounded-full flex items-center justify-center text-2xl sm:text-4xl mb-3 sm:mb-4 shadow-lg border-4 border-white overflow-hidden p-2 sm:p-3">
                   {match.flagB?.startsWith('http') ? (
                     <img src={match.flagB} alt={match.teamB} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                   ) : (
                     match.flagB
                   )}
                 </div>
-                <h4 className="text-lg font-black tracking-tighter uppercase text-center">{match.teamB}</h4>
+                <h4 className="text-xs sm:text-lg font-black tracking-tighter uppercase text-center leading-tight">{match.teamB}</h4>
               </div>
             </div>
 
