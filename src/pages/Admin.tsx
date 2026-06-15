@@ -1,12 +1,19 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'motion/react';
-import { ShieldCheck, Users, Calendar, Database, Send, Plus, Search, MoreVertical, Edit, Trash, CheckCircle, Loader2, Clock } from 'lucide-react';
+import { ShieldCheck, Users, Calendar, Database, Send, Plus, Search, MoreVertical, Edit, Trash, CheckCircle, Loader2, Clock, RefreshCw, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { collection, getCountFromServer } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { soccerService } from '../services/soccerService';
+import { soccerService, type ApiMatch } from '../services/soccerService';
 import { bettingService } from '../services/bettingService';
 import { CountdownTimer } from '../components/CountdownTimer';
+
+type PendingResult = {
+  apiMatch: ApiMatch;
+  localMatch: Record<string, unknown> | null;
+  scoreA: number;
+  scoreB: number;
+};
 
 export const Admin = () => {
   const [activeSubTab, setActiveSubTab] = useState('overview');
@@ -40,6 +47,17 @@ export const Admin = () => {
     match: null,
     scores: null
   });
+
+  // Auto-sync state
+  const [pendingResults, setPendingResults] = useState<PendingResult[]>([]);
+  const [lastApiCheck, setLastApiCheck] = useState<string | null>(null);
+  const [checkingResults, setCheckingResults] = useState(false);
+  const [previewModal, setPreviewModal] = useState<{
+    isOpen: boolean;
+    selected: Set<string>;
+    confirming: boolean;
+  }>({ isOpen: false, selected: new Set(), confirming: false });
+  const matchesRef = useRef<any[]>([]);
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -104,6 +122,97 @@ export const Admin = () => {
     if (activeSubTab === 'manubet') loadManuBets();
     if (activeSubTab === 'users') fetchUsers();
   }, [activeSubTab]);
+
+  // Keep ref in sync so polling closure always sees fresh matches
+  useEffect(() => { matchesRef.current = matches; }, [matches]);
+
+  // Poll /api/pending-results while on matches tab
+  useEffect(() => {
+    if (activeSubTab !== 'matches') return;
+
+    const checkResults = async () => {
+      const { matches: apiMatches, lastCheckedAt } = await soccerService.fetchApiResults();
+      setLastApiCheck(lastCheckedAt);
+
+      const newly: PendingResult[] = apiMatches
+        .filter(am => am.status === 'FINISHED')
+        .map(am => {
+          const scoreA = am.score.fullTime.home ?? 0;
+          const scoreB = am.score.fullTime.away ?? 0;
+          const local = matchesRef.current.find(m => m.id === am.id.toString()) ?? null;
+          return { apiMatch: am, localMatch: local, scoreA, scoreB };
+        })
+        .filter(({ scoreA, scoreB, localMatch }) =>
+          !localMatch?.finished || (localMatch as any).scoreA !== scoreA || (localMatch as any).scoreB !== scoreB
+        );
+
+      setPendingResults(newly);
+    };
+
+    checkResults();
+    const id = setInterval(checkResults, 60_000);
+    return () => clearInterval(id);
+  }, [activeSubTab]);
+
+  const handleManualRefresh = async () => {
+    setCheckingResults(true);
+    try {
+      const { matches: apiMatches, lastCheckedAt } = await soccerService.refreshApiResults();
+      setLastApiCheck(lastCheckedAt);
+
+      const newly: PendingResult[] = apiMatches
+        .filter(am => am.status === 'FINISHED')
+        .map(am => {
+          const scoreA = am.score.fullTime.home ?? 0;
+          const scoreB = am.score.fullTime.away ?? 0;
+          const local = matchesRef.current.find(m => m.id === am.id.toString()) ?? null;
+          return { apiMatch: am, localMatch: local, scoreA, scoreB };
+        })
+        .filter(({ scoreA, scoreB, localMatch }) =>
+          !localMatch?.finished || (localMatch as any).scoreA !== scoreA || (localMatch as any).scoreB !== scoreB
+        );
+
+      setPendingResults(newly);
+    } finally {
+      setCheckingResults(false);
+    }
+  };
+
+  const openPreviewModal = () => {
+    setPreviewModal({
+      isOpen: true,
+      selected: new Set(pendingResults.map(r => r.apiMatch.id.toString())),
+      confirming: false,
+    });
+  };
+
+  const toggleResultSelection = (id: string) => {
+    setPreviewModal(prev => {
+      const next = new Set(prev.selected);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return { ...prev, selected: next };
+    });
+  };
+
+  const handleConfirmResults = async () => {
+    setPreviewModal(prev => ({ ...prev, confirming: true }));
+    try {
+      for (const result of pendingResults) {
+        if (!previewModal.selected.has(result.apiMatch.id.toString())) continue;
+        await soccerService.updateMatchScore(
+          result.apiMatch.id.toString(),
+          result.scoreA,
+          result.scoreB
+        );
+      }
+      setPreviewModal({ isOpen: false, selected: new Set(), confirming: false });
+      setPendingResults([]);
+      fetchMatches();
+    } catch {
+      alert('Erro ao confirmar resultados.');
+      setPreviewModal(prev => ({ ...prev, confirming: false }));
+    }
+  };
 
   const handleUpdateScore = async (matchId: string, scoreA: number, scoreB: number) => {
     try {
@@ -276,7 +385,6 @@ export const Admin = () => {
                   <div className="space-y-4">
                     <button
                       onClick={handleSync}
-                      disabled={true}
                       className="w-full text-left p-4 bg-slate-950 hover:bg-slate-900 rounded-2xl text-sm text-slate-300 flex items-center justify-between border border-slate-800 transition-all group"
                     >
                       <span className="flex items-center gap-3">
@@ -369,20 +477,43 @@ export const Admin = () => {
 
           {activeSubTab === 'matches' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-white">Próximos Confrontos</h3>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleSync}
-                    disabled={true}
-                    className="bg-green-600 hover:bg-green-500 text-white font-bold px-6 py-2 rounded-xl flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {syncing ? 'Sincronizando...' : 'Importar da API'}
-                  </button>
-                  <button className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 py-2 rounded-xl flex items-center gap-2">
-                    <Plus size={18} /> Novo Jogo
-                  </button>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">Calendário & Resultados</h3>
+                  <div className="flex gap-2 flex-wrap justify-end">
+                    {pendingResults.length > 0 && (
+                      <button
+                        onClick={openPreviewModal}
+                        className="bg-orange-600 hover:bg-orange-500 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2 animate-pulse"
+                      >
+                        <AlertTriangle size={16} />
+                        {pendingResults.length} resultado{pendingResults.length !== 1 ? 's' : ''} pendente{pendingResults.length !== 1 ? 's' : ''}
+                      </button>
+                    )}
+                    <button
+                      onClick={handleManualRefresh}
+                      disabled={checkingResults}
+                      className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2 disabled:opacity-50"
+                      title="Forçar consulta à API agora"
+                    >
+                      <RefreshCw size={16} className={checkingResults ? 'animate-spin' : ''} />
+                      Verificar agora
+                    </button>
+                    <button
+                      onClick={handleSync}
+                      disabled={syncing}
+                      className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {syncing ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
+                      {syncing ? 'Sincronizando...' : 'Importar da API'}
+                    </button>
+                  </div>
                 </div>
+                {lastApiCheck && (
+                  <p className="text-[10px] text-slate-600 font-mono">
+                    Última verificação automática: {new Date(lastApiCheck).toLocaleTimeString()} — cron a cada 5 min
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-1 gap-4">
                 {loadingMatches ? <p className="text-white/40 italic">Carregando jogos do banco...</p> :
@@ -622,6 +753,108 @@ export const Admin = () => {
           )}
         </div>
       </div>
+      {/* Auto-Sync Preview Modal */}
+      {previewModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-slate-900 border border-slate-800 rounded-[32px] p-8 max-w-2xl w-full shadow-2xl max-h-[90vh] flex flex-col"
+          >
+            <div className="mb-6">
+              <h3 className="text-2xl font-black text-white italic uppercase flex items-center gap-3">
+                <AlertTriangle className="text-orange-500" size={24} />
+                Resultados Detectados
+              </h3>
+              <p className="text-slate-400 text-sm mt-1">
+                {pendingResults.length} jogo{pendingResults.length !== 1 ? 's' : ''} encerrado{pendingResults.length !== 1 ? 's' : ''} na API aguardando confirmação.
+                Selecione os que deseja persistir no banco.
+              </p>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-3 mb-6 pr-1">
+              {pendingResults.map(({ apiMatch, localMatch, scoreA, scoreB }) => {
+                const id = apiMatch.id.toString();
+                const isSelected = previewModal.selected.has(id);
+                const isUpdate = !!(localMatch as any)?.finished;
+                return (
+                  <button
+                    key={id}
+                    onClick={() => toggleResultSelection(id)}
+                    className={cn(
+                      "w-full text-left p-5 rounded-2xl border-2 transition-all",
+                      isSelected
+                        ? "border-orange-500 bg-orange-500/10"
+                        : "border-slate-800 bg-slate-950 opacity-50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {apiMatch.homeTeam.crest && (
+                          <img src={apiMatch.homeTeam.crest} alt="" className="w-8 h-6 object-contain" referrerPolicy="no-referrer" />
+                        )}
+                        <span className="font-bold text-white text-sm truncate">{apiMatch.homeTeam.name}</span>
+                      </div>
+
+                      <div className="flex flex-col items-center shrink-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-3xl font-black text-white">{scoreA}</span>
+                          <span className="text-slate-600 font-black">×</span>
+                          <span className="text-3xl font-black text-white">{scoreB}</span>
+                        </div>
+                        <span className={cn(
+                          "text-[9px] font-black uppercase tracking-widest mt-1",
+                          isUpdate ? "text-yellow-500" : "text-green-500"
+                        )}>
+                          {isUpdate ? `ATUALIZAÇÃO (era ${(localMatch as any).scoreA}×${(localMatch as any).scoreB})` : 'NOVO RESULTADO'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-3 min-w-0 justify-end">
+                        <span className="font-bold text-white text-sm truncate text-right">{apiMatch.awayTeam.name}</span>
+                        {apiMatch.awayTeam.crest && (
+                          <img src={apiMatch.awayTeam.crest} alt="" className="w-8 h-6 object-contain" referrerPolicy="no-referrer" />
+                        )}
+                      </div>
+
+                      <div className={cn(
+                        "w-5 h-5 rounded border-2 shrink-0 flex items-center justify-center",
+                        isSelected ? "border-orange-500 bg-orange-500" : "border-slate-600"
+                      )}>
+                        {isSelected && <CheckCircle size={12} className="text-white" />}
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-600 mt-2 font-mono">
+                      ID: {id} • {apiMatch.stage?.replace('_', ' ')} • Rodada {apiMatch.matchday}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setPreviewModal({ isOpen: false, selected: new Set(), confirming: false })}
+                disabled={previewModal.confirming}
+                className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-2xl transition-all disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmResults}
+                disabled={previewModal.confirming || previewModal.selected.size === 0}
+                className="bg-orange-600 hover:bg-orange-500 text-white font-black py-4 rounded-2xl transition-all shadow-lg shadow-orange-500/20 disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {previewModal.confirming
+                  ? <><Loader2 size={18} className="animate-spin" /> Salvando...</>
+                  : `Confirmar ${previewModal.selected.size} selecionado${previewModal.selected.size !== 1 ? 's' : ''}`
+                }
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {confirmModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
