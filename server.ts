@@ -17,12 +17,16 @@ let lastCheckedAt: string | null = null;
 const FOOTBALL_API_URL = "https://api.football-data.org/v4/competitions/WC/matches";
 const CRON_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
 
+let pollInProgress = false;
+
 async function pollFootballApi() {
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
   if (!apiKey) {
     console.warn("[ResultsCron] FOOTBALL_DATA_API_KEY não definida — polling desativado.");
     return;
   }
+  if (pollInProgress) return;
+  pollInProgress = true;
   try {
     const response = await fetch(FOOTBALL_API_URL, {
       headers: { "X-Auth-Token": apiKey },
@@ -35,6 +39,8 @@ async function pollFootballApi() {
     console.log(`[ResultsCron] ${cachedApiMatches.length} jogos, ${finished} encerrados`);
   } catch (err) {
     console.error("[ResultsCron] Erro ao consultar API:", err);
+  } finally {
+    pollInProgress = false;
   }
 }
 

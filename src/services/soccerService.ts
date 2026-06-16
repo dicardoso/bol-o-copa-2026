@@ -195,7 +195,8 @@ export const soccerService = {
     try {
       const response = await axios.get<{ matches: ApiMatch[]; lastCheckedAt: string | null }>('/api/pending-results');
       return response.data;
-    } catch {
+    } catch (err) {
+      console.error('[fetchApiResults]', err);
       return { matches: [], lastCheckedAt: null };
     }
   },
@@ -204,7 +205,8 @@ export const soccerService = {
     try {
       const response = await axios.post<{ matches: ApiMatch[]; lastCheckedAt: string | null }>('/api/pending-results/refresh');
       return response.data;
-    } catch {
+    } catch (err) {
+      console.error('[refreshApiResults]', err);
       return { matches: [], lastCheckedAt: null };
     }
   },

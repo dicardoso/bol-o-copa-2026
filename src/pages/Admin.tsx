@@ -150,7 +150,7 @@ export const Admin = () => {
     };
 
     checkResults();
-    const id = setInterval(checkResults, 60_000);
+    const id = setInterval(checkResults, 5 * 60_000);
     return () => clearInterval(id);
   }, [activeSubTab]);
 
@@ -909,7 +909,7 @@ export const Admin = () => {
                   className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm"
                 >
                   <option value="">Selecione um jogo...</option>
-                  {matches.map(m => (
+                  {matches.filter(m => new Date(m.date) > new Date()).map(m => (
                     <option key={m.id} value={m.id}>{m.teamA} x {m.teamB} ({new Date(m.date).toLocaleDateString()})</option>
                   ))}
                 </select>
