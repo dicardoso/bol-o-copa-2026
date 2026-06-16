@@ -191,6 +191,26 @@ export const soccerService = {
     return finishedMatches.length;
   },
 
+  async fetchApiResults(): Promise<{ matches: ApiMatch[]; lastCheckedAt: string | null }> {
+    try {
+      const response = await axios.get<{ matches: ApiMatch[]; lastCheckedAt: string | null }>('/api/pending-results');
+      return response.data;
+    } catch (err) {
+      console.error('[fetchApiResults]', err);
+      return { matches: [], lastCheckedAt: null };
+    }
+  },
+
+  async refreshApiResults(): Promise<{ matches: ApiMatch[]; lastCheckedAt: string | null }> {
+    try {
+      const response = await axios.post<{ matches: ApiMatch[]; lastCheckedAt: string | null }>('/api/pending-results/refresh');
+      return response.data;
+    } catch (err) {
+      console.error('[refreshApiResults]', err);
+      return { matches: [], lastCheckedAt: null };
+    }
+  },
+
   async saveRankingSnapshot(matchId: string, scoreA: number, scoreB: number) {
     try {
       const matchSnap = await getDocs(query(collection(db, 'matches')));

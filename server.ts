@@ -10,11 +10,79 @@ dotenv.config({ override: true });
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// --- Football Data API cache (populated by background cron) ---
+let cachedApiMatches: Record<string, unknown>[] = [];
+let lastCheckedAt: string | null = null;
+
+const FOOTBALL_API_URL = "https://api.football-data.org/v4/competitions/WC/matches";
+const CRON_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos
+
+let pollInProgress = false;
+
+async function pollFootballApi() {
+  const apiKey = process.env.FOOTBALL_DATA_API_KEY;
+  if (!apiKey) {
+    console.warn("[ResultsCron] FOOTBALL_DATA_API_KEY não definida — polling desativado.");
+    return;
+  }
+  if (pollInProgress) return;
+  pollInProgress = true;
+  try {
+    const response = await fetch(FOOTBALL_API_URL, {
+      headers: { "X-Auth-Token": apiKey },
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    const data = (await response.json()) as { matches?: Record<string, unknown>[] };
+    cachedApiMatches = data.matches ?? [];
+    lastCheckedAt = new Date().toISOString();
+    const finished = cachedApiMatches.filter((m) => m["status"] === "FINISHED").length;
+    console.log(`[ResultsCron] ${cachedApiMatches.length} jogos, ${finished} encerrados`);
+  } catch (err) {
+    console.error("[ResultsCron] Erro ao consultar API:", err);
+  } finally {
+    pollInProgress = false;
+  }
+}
+
+// Roda imediatamente e a cada 5 minutos
+pollFootballApi();
+setInterval(pollFootballApi, CRON_INTERVAL_MS);
+
 async function startServer() {
   const app = express();
   const PORT = 8000;
 
   app.use(express.json());
+
+  // Proxy para football-data.org (leitura on-demand, usada pelo syncWorldCupMatches)
+  app.get("/api/football-proxy", async (req, res) => {
+    const apiKey = process.env.FOOTBALL_DATA_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ error: "FOOTBALL_DATA_API_KEY não configurada." });
+    }
+    try {
+      const response = await fetch(FOOTBALL_API_URL, {
+        headers: { "X-Auth-Token": apiKey },
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      res.json(data);
+    } catch (err) {
+      console.error("[football-proxy]", err);
+      res.status(502).json({ error: "Falha ao consultar football-data.org" });
+    }
+  });
+
+  // Retorna o cache mais recente do cron (sem nova requisição à API)
+  app.get("/api/pending-results", (req, res) => {
+    res.json({ matches: cachedApiMatches, lastCheckedAt });
+  });
+
+  // Força uma nova consulta à API e retorna o resultado imediatamente
+  app.post("/api/pending-results/refresh", async (req, res) => {
+    await pollFootballApi();
+    res.json({ matches: cachedApiMatches, lastCheckedAt });
+  });
 
   // Rota de API para envio de e-mail via SMTP
   app.post("/api/send-email", async (req, res) => {
