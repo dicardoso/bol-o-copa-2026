@@ -92,9 +92,10 @@ export const Betting = () => {
   const canViewBets = (match: any) => isMatchLocked(match);
 
   const openBetsModal = async (match: any) => {
+    const matchId = match.id;
     setBetsModal({ isOpen: true, match, bets: [], loading: true });
     try {
-      const betsSnap = await getDocs(query(collection(db, 'bets'), where('matchId', '==', match.id)));
+      const betsSnap = await getDocs(query(collection(db, 'bets'), where('matchId', '==', matchId)));
       const entries = await Promise.all(
         betsSnap.docs.map(async (betDoc) => {
           const bet = betDoc.data();
@@ -113,10 +114,16 @@ export const Betting = () => {
       const sorted = match.finished
         ? entries.sort((a, b) => (b.pointsEarned ?? 0) - (a.pointsEarned ?? 0))
         : entries.sort((a, b) => a.displayName.localeCompare(b.displayName));
-      setBetsModal(prev => ({ ...prev, bets: sorted, loading: false }));
+      setBetsModal(prev => {
+        if (prev.match?.id !== matchId) return prev;
+        return { ...prev, bets: sorted, loading: false };
+      });
     } catch (err) {
       console.error(err);
-      setBetsModal(prev => ({ ...prev, loading: false }));
+      setBetsModal(prev => {
+        if (prev.match?.id !== matchId) return prev;
+        return { ...prev, loading: false };
+      });
     }
   };
 
