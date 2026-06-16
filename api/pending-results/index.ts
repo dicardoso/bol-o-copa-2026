@@ -7,6 +7,11 @@ export default async function handler(
   _req: IncomingMessage,
   res: ServerResponse
 ) {
+  if (_req.method !== "GET") {
+    res.writeHead(405, { "Content-Type": "application/json", Allow: "GET" });
+    res.end(JSON.stringify({ error: "Método não permitido" }));
+    return;
+  }
   const apiKey = process.env.FOOTBALL_DATA_API_KEY;
   if (!apiKey) {
     res.writeHead(500, { "Content-Type": "application/json" });
