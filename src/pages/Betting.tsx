@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'motion/react';
-import { Sword, Save, Trash2, Clock, MapPin, CheckCircle2, EyeOff, Eye } from 'lucide-react';
+import { Sword, Save, Trash2, Clock, MapPin, CheckCircle2, EyeOff, Eye, Users, X, Trophy } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { soccerService } from '../services/soccerService';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
-import { doc, setDoc, getDocs, collection, query, where } from 'firebase/firestore';
+import { doc, setDoc, getDocs, getDoc, collection, query, where } from 'firebase/firestore';
 
 import { CountdownTimer } from '../components/CountdownTimer';
 
@@ -17,6 +17,12 @@ export const Betting = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [hideFinished, setHideFinished] = useState(true);
+  const [betsModal, setBetsModal] = useState<{
+    isOpen: boolean;
+    match: any | null;
+    bets: { userId: string; displayName: string; photoURL: string; predictedScoreA: number; predictedScoreB: number; pointsEarned?: number }[];
+    loading: boolean;
+  }>({ isOpen: false, match: null, bets: [], loading: false });
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick(t => t + 1), []);
 
@@ -83,6 +89,44 @@ export const Betting = () => {
   const isMatchLocked = (match: any): boolean =>
     match.finished || new Date() >= new Date(match.date);
 
+  const canViewBets = (match: any) => isMatchLocked(match);
+
+  const openBetsModal = async (match: any) => {
+    const matchId = match.id;
+    setBetsModal({ isOpen: true, match, bets: [], loading: true });
+    try {
+      const betsSnap = await getDocs(query(collection(db, 'bets'), where('matchId', '==', matchId)));
+      const entries = await Promise.all(
+        betsSnap.docs.map(async (betDoc) => {
+          const bet = betDoc.data();
+          const userSnap = await getDoc(doc(db, 'users', bet.userId));
+          const u = userSnap.data();
+          return {
+            userId: bet.userId,
+            displayName: u?.displayName || 'Usuário',
+            photoURL: u?.photoURL || '',
+            predictedScoreA: bet.predictedScoreA ?? 0,
+            predictedScoreB: bet.predictedScoreB ?? 0,
+            pointsEarned: bet.pointsEarned,
+          };
+        })
+      );
+      const sorted = match.finished
+        ? entries.sort((a, b) => (b.pointsEarned ?? 0) - (a.pointsEarned ?? 0))
+        : entries.sort((a, b) => a.displayName.localeCompare(b.displayName));
+      setBetsModal(prev => {
+        if (prev.match?.id !== matchId) return prev;
+        return { ...prev, bets: sorted, loading: false };
+      });
+    } catch (err) {
+      console.error(err);
+      setBetsModal(prev => {
+        if (prev.match?.id !== matchId) return prev;
+        return { ...prev, loading: false };
+      });
+    }
+  };
+
   const saveBet = async (matchId: string) => {
     if (!user) return;
     const match = matches.find(m => m.id === matchId);
@@ -120,10 +164,10 @@ export const Betting = () => {
 
   const visibleMatches = hideFinished
     ? matches.filter(m => {
-        const matchDay = new Date(m.date);
-        matchDay.setHours(0, 0, 0, 0);
-        return !m.finished || matchDay >= today;
-      })
+      const matchDay = new Date(m.date);
+      matchDay.setHours(0, 0, 0, 0);
+      return !m.finished || matchDay >= today;
+    })
     : matches;
 
   const hiddenCount = matches.length - visibleMatches.length;
@@ -257,7 +301,7 @@ export const Betting = () => {
               </div>
             </div>
 
-            <div className="w-full mt-8 pt-6 border-t border-slate-100 flex items-center justify-between">
+            <div className="w-full mt-8 pt-6 border-t border-slate-100 flex items-center justify-between flex-wrap gap-3">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-black block">Status do Jogo</span>
                 <span className={cn("font-extrabold text-sm uppercase",
@@ -272,20 +316,30 @@ export const Betting = () => {
                       : 'Aberto para Palpites'}
                 </span>
               </div>
-              {!isMatchLocked(match) && (
-                <button
-                  onClick={() => saveBet(match.id)}
-                  disabled={saving === match.id}
-                  className="bg-editorial-accent hover:bg-green-600 text-white font-black px-8 py-3 rounded-xl transition-all shadow-lg shadow-green-900/20 active:scale-95 uppercase text-xs tracking-widest disabled:opacity-50"
-                >
-                  {userBets[match.id]?.updatedAt ? 'Atualizar' : 'Confirmar'}
-                </button>
-              )}
-              {isMatchLocked(match) && userBets[match.id] && (
-                <div className="flex items-center gap-2 text-editorial-navy font-bold text-xs uppercase bg-slate-100 px-4 py-2 rounded-lg">
-                  <CheckCircle2 size={16} className="text-green-600" /> Palpite Registrado
-                </div>
-              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {canViewBets(match) && (
+                  <button
+                    onClick={() => openBetsModal(match)}
+                    className="flex items-center gap-2 text-editorial-navy font-bold text-xs uppercase bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-lg transition-colors"
+                  >
+                    <Users size={14} /> Ver palpites
+                  </button>
+                )}
+                {!isMatchLocked(match) && (
+                  <button
+                    onClick={() => saveBet(match.id)}
+                    disabled={saving === match.id}
+                    className="bg-editorial-accent hover:bg-green-600 text-white font-black px-8 py-3 rounded-xl transition-all shadow-lg shadow-green-900/20 active:scale-95 uppercase text-xs tracking-widest disabled:opacity-50"
+                  >
+                    {userBets[match.id]?.updatedAt ? 'Atualizar' : 'Confirmar'}
+                  </button>
+                )}
+                {isMatchLocked(match) && userBets[match.id] && (
+                  <div className="flex items-center gap-2 text-editorial-navy font-bold text-xs uppercase bg-slate-100 px-4 py-2 rounded-lg">
+                    <CheckCircle2 size={16} className="text-green-600" /> Palpite Registrado
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         ))}
@@ -297,6 +351,120 @@ export const Betting = () => {
           Lembre-se: Você pode alterar seus palpites até o início de cada partida.
         </p>
       </div>
+
+      {/* Bets Modal */}
+      {betsModal.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-slate-900 border border-slate-800 rounded-t-[32px] sm:rounded-[32px] w-full sm:max-w-lg max-h-[85vh] flex flex-col shadow-2xl"
+          >
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800 flex items-start justify-between gap-4 shrink-0">
+              <div>
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Palpites do Jogo</p>
+                <h3 className="text-lg font-black text-white uppercase tracking-tight leading-tight">
+                  {betsModal.match?.teamA} <span className="text-slate-500">×</span> {betsModal.match?.teamB}
+                </h3>
+                {betsModal.match?.finished && (
+                  <p className="text-xs text-green-500 font-bold mt-1">
+                    Resultado: {betsModal.match.scoreA} × {betsModal.match.scoreB}
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setBetsModal({ isOpen: false, match: null, bets: [], loading: false })}
+                className="p-2 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-colors shrink-0"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* List */}
+            <div className="overflow-y-auto flex-1 p-4 space-y-2">
+              {betsModal.loading ? (
+                <div className="py-12 text-center text-slate-500 text-sm">Carregando palpites...</div>
+              ) : betsModal.bets.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 text-sm italic">Nenhum palpite registrado ainda.</div>
+              ) : (
+                betsModal.bets.map((entry, i) => {
+                  const isMe = entry.userId === user?.uid;
+                  const isExact = betsModal.match?.finished &&
+                    entry.predictedScoreA === betsModal.match.scoreA &&
+                    entry.predictedScoreB === betsModal.match.scoreB;
+                  const isCorrect = !isExact && betsModal.match?.finished && (entry.pointsEarned ?? 0) > 0;
+
+                  return (
+                    <div
+                      key={entry.userId}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-2xl border transition-all",
+                        isMe ? "border-yellow-500/40 bg-yellow-500/5" : "border-slate-800 bg-slate-800/30"
+                      )}
+                    >
+                      {/* Rank (only when finished) */}
+                      {betsModal.match?.finished && (
+                        <span className="text-[10px] font-black text-slate-600 w-5 text-center shrink-0">
+                          {i + 1}º
+                        </span>
+                      )}
+
+                      {/* Avatar */}
+                      <img
+                        src={entry.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${entry.userId}`}
+                        alt={entry.displayName}
+                        className="w-9 h-9 rounded-full bg-slate-700 shrink-0 object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+
+                      {/* Name */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-white truncate flex items-center gap-1.5">
+                          {entry.displayName}
+                          {isMe && (
+                            <span className="text-[8px] bg-yellow-500 text-slate-900 px-1.5 py-0.5 rounded font-black uppercase">Você</span>
+                          )}
+                        </p>
+                      </div>
+
+                      {/* Predicted score */}
+                      <div className={cn(
+                        "px-3 py-1.5 rounded-xl font-black text-sm tracking-tight shrink-0",
+                        isExact ? "bg-green-500 text-white" :
+                          isCorrect ? "bg-blue-500/20 text-blue-400 border border-blue-500/30" :
+                            "bg-slate-800 text-slate-300"
+                      )}>
+                        {entry.predictedScoreA} × {entry.predictedScoreB}
+                      </div>
+
+                      {/* Points (only when finished) */}
+                      {betsModal.match?.finished && (
+                        <div className={cn(
+                          "flex items-center gap-1 text-[11px] font-black shrink-0",
+                          (entry.pointsEarned ?? 0) > 0 ? "text-yellow-400" : "text-slate-600"
+                        )}>
+                          <Trophy size={11} />
+                          {entry.pointsEarned ?? 0}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer count */}
+            {!betsModal.loading && betsModal.bets.length > 0 && (
+              <div className="px-6 py-3 border-t border-slate-800 shrink-0">
+                <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest text-center">
+                  {betsModal.bets.length} palpite{betsModal.bets.length !== 1 ? 's' : ''} registrado{betsModal.bets.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };
