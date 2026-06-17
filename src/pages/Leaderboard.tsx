@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { TrendingUp, TrendingDown, Minus, History } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, History, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { collection, query, orderBy, limit, getDocs, getCountFromServer, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -23,12 +23,21 @@ interface Snapshot {
 
 const PLAYER_COLORS = ['#f59e0b','#3b82f6','#10b981','#f97316','#8b5cf6','#ec4899','#94a3b8','#14b8a6','#84cc16','#ef4444'];
 
+const WINDOW = 8;
+
 interface BumpChartProps {
   snapshots: Snapshot[];
   players: { id: string; displayName: string }[];
 }
 
 const BumpChart = ({ snapshots, players }: BumpChartProps) => {
+  const [windowEnd, setWindowEnd] = useState(snapshots.length);
+
+  const windowStart = Math.max(0, windowEnd - WINDOW);
+  const visible = snapshots.slice(windowStart, windowEnd);
+  const canPrev = windowStart > 0;
+  const canNext = windowEnd < snapshots.length;
+
   if (snapshots.length < 2) return (
     <p className="text-white/30 text-xs text-center py-8">São necessários pelo menos 2 jogos resolvidos para exibir o gráfico.</p>
   );
@@ -39,89 +48,108 @@ const BumpChart = ({ snapshots, players }: BumpChartProps) => {
   const chartH = H - padT - padB;
   const maxPos = Math.min(players.length, 10);
 
-  const xOf = (si: number) => padL + (si / (snapshots.length - 1)) * chartW;
-  const yOf = (pos: number) => padT + ((pos - 1) / (maxPos - 1)) * chartH;
+  const xOf = (si: number) => padL + (si / Math.max(visible.length - 1, 1)) * chartW;
+  const yOf = (pos: number) => padT + ((pos - 1) / Math.max(maxPos - 1, 1)) * chartH;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 340 }}>
-      {/* Grid lines */}
-      {Array.from({ length: maxPos }, (_, i) => (
-        <line key={i} x1={padL} x2={W - padR} y1={yOf(i + 1)} y2={yOf(i + 1)}
-          stroke="white" strokeOpacity={0.04} strokeWidth={1} />
-      ))}
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 340 }}>
+        {/* Grid lines */}
+        {Array.from({ length: maxPos }, (_, i) => (
+          <line key={i} x1={padL} x2={W - padR} y1={yOf(i + 1)} y2={yOf(i + 1)}
+            stroke="white" strokeOpacity={0.04} strokeWidth={1} />
+        ))}
 
-      {/* Position labels left */}
-      {Array.from({ length: maxPos }, (_, i) => (
-        <text key={i} x={padL - 10} y={yOf(i + 1) + 4} textAnchor="end"
-          fill="rgba(255,255,255,0.2)" fontSize={10} fontWeight="bold">
-          #{i + 1}
-        </text>
-      ))}
+        {/* Position labels left */}
+        {Array.from({ length: maxPos }, (_, i) => (
+          <text key={i} x={padL - 10} y={yOf(i + 1) + 4} textAnchor="end"
+            fill="rgba(255,255,255,0.2)" fontSize={10} fontWeight="bold">
+            #{i + 1}
+          </text>
+        ))}
 
-      {/* Match labels bottom */}
-      {snapshots.map((s, si) => (
-        <text key={s.matchId} x={xOf(si)} y={H - 4} textAnchor="middle"
-          fill="rgba(255,255,255,0.25)" fontSize={9}>
-          {s.matchLabel.length > 12 ? s.matchLabel.slice(0, 11) + '…' : s.matchLabel}
-        </text>
-      ))}
+        {/* Match labels bottom */}
+        {visible.map((s, si) => (
+          <text key={s.matchId} x={xOf(si)} y={H - 4} textAnchor="middle"
+            fill="rgba(255,255,255,0.25)" fontSize={9}>
+            {s.matchLabel.length > 12 ? s.matchLabel.slice(0, 11) + '…' : s.matchLabel}
+          </text>
+        ))}
 
-      {/* Player lines */}
-      {players.slice(0, 10).map((player, pi) => {
-        const color = PLAYER_COLORS[pi];
-        const positions = snapshots.map(s => {
-          const e = s.entries.find(e => e.userId === player.id);
-          return e ? Math.min(e.position, maxPos) : null;
-        });
+        {/* Player lines */}
+        {players.slice(0, 10).map((player, pi) => {
+          const color = PLAYER_COLORS[pi];
+          const positions = visible.map(s => {
+            const e = s.entries.find(e => e.userId === player.id);
+            return e ? Math.min(e.position, maxPos) : null;
+          });
 
-        // Build smooth bump path using cubic bezier
-        const segments: string[] = [];
-        for (let si = 0; si < snapshots.length; si++) {
-          const pos = positions[si];
-          if (pos === null) continue;
-          const x = xOf(si);
-          const y = yOf(pos);
-          if (segments.length === 0) {
-            segments.push(`M ${x},${y}`);
-          } else {
-            // Find previous valid point
-            let prevSi = si - 1;
-            while (prevSi >= 0 && positions[prevSi] === null) prevSi--;
-            if (prevSi >= 0 && positions[prevSi] !== null) {
-              const px = xOf(prevSi);
-              const py = yOf(positions[prevSi]!);
-              const mx = (px + x) / 2;
-              segments.push(`C ${mx},${py} ${mx},${y} ${x},${y}`);
-            } else {
+          const segments: string[] = [];
+          for (let si = 0; si < visible.length; si++) {
+            const pos = positions[si];
+            if (pos === null) continue;
+            const x = xOf(si);
+            const y = yOf(pos);
+            if (segments.length === 0) {
               segments.push(`M ${x},${y}`);
+            } else {
+              let prevSi = si - 1;
+              while (prevSi >= 0 && positions[prevSi] === null) prevSi--;
+              if (prevSi >= 0 && positions[prevSi] !== null) {
+                const px = xOf(prevSi);
+                const py = yOf(positions[prevSi]!);
+                const mx = (px + x) / 2;
+                segments.push(`C ${mx},${py} ${mx},${y} ${x},${y}`);
+              } else {
+                segments.push(`M ${x},${y}`);
+              }
             }
           }
-        }
 
-        const d = segments.join(' ');
-        const firstPos = positions.find(p => p !== null);
-        const lastPos = [...positions].reverse().find(p => p !== null);
-        const lastSi = positions.lastIndexOf(lastPos ?? null);
-        const firstSi = positions.indexOf(firstPos ?? null);
+          const d = segments.join(' ');
+          const lastPos = [...positions].reverse().find(p => p !== null);
+          const lastSi = positions.lastIndexOf(lastPos ?? null);
 
-        return (
-          <g key={player.id}>
-            <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" opacity={0.85} />
-            {/* Dots at each snapshot */}
-            {positions.map((pos, si) => pos !== null && (
-              <circle key={si} cx={xOf(si)} cy={yOf(pos)} r={4} fill={color} stroke="#0f172a" strokeWidth={1.5} />
-            ))}
-            {/* Name + position at end (right side) */}
-            {lastPos !== null && (
-              <text x={xOf(lastSi) + 10} y={yOf(lastPos!) + 4} textAnchor="start"
-                fill={color} fontSize={10} fontWeight="bold" opacity={0.9}>
-                #{lastPos} {player.displayName.split(' ')[0]}
-              </text>
-            )}
-          </g>
-        );
-      })}
-    </svg>
+          return (
+            <g key={player.id}>
+              <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" opacity={0.85} />
+              {positions.map((pos, si) => pos !== null && (
+                <circle key={si} cx={xOf(si)} cy={yOf(pos)} r={4} fill={color} stroke="#0f172a" strokeWidth={1.5} />
+              ))}
+              {lastPos !== null && (
+                <text x={xOf(lastSi) + 10} y={yOf(lastPos!) + 4} textAnchor="start"
+                  fill={color} fontSize={10} fontWeight="bold" opacity={0.9}>
+                  #{lastPos} {player.displayName.split(' ')[0]}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Window navigation */}
+      {snapshots.length > WINDOW && (
+        <div className="flex items-center justify-center gap-4 mt-4">
+          <button
+            onClick={() => setWindowEnd(e => Math.max(WINDOW, e - 1))}
+            disabled={!canPrev}
+            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronLeft size={16} className="text-white/60" />
+          </button>
+          <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+            {windowStart + 1}–{windowEnd} / {snapshots.length}
+          </span>
+          <button
+            onClick={() => setWindowEnd(e => Math.min(snapshots.length, e + 1))}
+            disabled={!canNext}
+            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+          >
+            <ChevronRight size={16} className="text-white/60" />
+          </button>
+        </div>
+      )}
+    </div>
   );
 };
 
@@ -132,6 +160,9 @@ export const Leaderboard = () => {
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [myRank, setMyRank] = useState<number | null>(null);
+  const [tableEnd, setTableEnd] = useState(0);
+  const tableStart = Math.max(0, tableEnd - WINDOW);
+  const visibleCols = snapshots.slice(tableStart, tableEnd);
 
   useEffect(() => {
     const fetchRanking = async () => {
@@ -161,7 +192,9 @@ export const Leaderboard = () => {
         // Buscar histórico de snapshots
         const histQ = query(collection(db, 'rankingHistory'), orderBy('resolvedAt', 'asc'));
         const histSnap = await getDocs(histQ);
-        setSnapshots(histSnap.docs.map(d => d.data() as Snapshot));
+        const loaded = histSnap.docs.map(d => d.data() as Snapshot);
+        setSnapshots(loaded);
+        setTableEnd(loaded.length);
       } catch (err) {
         console.error('Erro ao buscar ranking:', err);
       } finally {
@@ -336,55 +369,77 @@ if (loading) return <div className="flex items-center justify-center h-64 text-w
 
               {/* Tabela por jogo */}
               <div className="bg-editorial-navy/40 border border-white/5 rounded-[24px] overflow-hidden">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="bg-white/5">
-                      <th className="px-6 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Player</th>
-                      {snapshots.map(s => (
-                        <th key={s.matchId} className="px-4 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-center whitespace-nowrap">
-                          {s.matchLabel}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {ranking.slice(0, 20).map((player, i) => (
-                      <motion.tr
-                        key={player.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: i * 0.03 }}
-                        className="hover:bg-white/[0.02] transition-colors"
-                      >
-                        <td className="px-6 py-3">
-                          <div className="flex items-center gap-3">
-                            <span className="text-white/20 font-black text-xs w-4">{player.pos}</span>
-                            <div className="w-6 h-6 bg-white/5 rounded-full overflow-hidden">
-                              {player.photoURL ? <img src={player.photoURL} className="w-full h-full object-cover" /> : null}
-                            </div>
-                            <span className="font-bold text-xs">{player.displayName}</span>
-                          </div>
-                        </td>
-                        {snapshots.map((s, si) => {
-                          const entry = s.entries.find(e => e.userId === player.id);
-                          const prev = si > 0 ? snapshots[si - 1].entries.find(e => e.userId === player.id) : null;
-                          const gained = entry && prev ? entry.points - prev.points : null;
-                          return (
-                            <td key={s.matchId} className="px-4 py-3 text-center">
-                              <span className="font-mono font-bold text-xs text-white/70">{entry?.points ?? '—'}</span>
-                              {gained !== null && gained > 0 && (
-                                <span className="block text-[9px] text-green-400 font-black">+{gained}</span>
-                              )}
-                              {entry && (
-                                <span className="block text-[9px] text-white/30">#{entry.position}</span>
-                              )}
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-white/5">
+                          <th className="px-6 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Player</th>
+                          {visibleCols.map(s => (
+                            <th key={s.matchId} className="px-4 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-center whitespace-nowrap">
+                              {s.matchLabel}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {ranking.slice(0, 20).map((player, i) => (
+                          <motion.tr
+                            key={player.id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: i * 0.03 }}
+                            className="hover:bg-white/[0.02] transition-colors"
+                          >
+                            <td className="px-6 py-3">
+                              <div className="flex items-center gap-3">
+                                <span className="text-white/20 font-black text-xs w-4">{player.pos}</span>
+                                <div className="w-6 h-6 bg-white/5 rounded-full overflow-hidden">
+                                  {player.photoURL ? <img src={player.photoURL} className="w-full h-full object-cover" /> : null}
+                                </div>
+                                <span className="font-bold text-xs">{player.displayName}</span>
+                              </div>
                             </td>
-                          );
-                        })}
-                      </motion.tr>
-                    ))}
-                  </tbody>
-                </table>
+                            {visibleCols.map((s, vi) => {
+                              const realIdx = tableStart + vi;
+                              const entry = s.entries.find(e => e.userId === player.id);
+                              const prev = realIdx > 0 ? snapshots[realIdx - 1].entries.find(e => e.userId === player.id) : null;
+                              const gained = entry && prev ? entry.points - prev.points : null;
+                              return (
+                                <td key={s.matchId} className="px-4 py-3 text-center">
+                                  <span className="font-mono font-bold text-xs text-white/70">{entry?.points ?? '—'}</span>
+                                  {gained !== null && gained > 0 && (
+                                    <span className="block text-[9px] text-green-400 font-black">+{gained}</span>
+                                  )}
+                                  {entry && (
+                                    <span className="block text-[9px] text-white/30">#{entry.position}</span>
+                                  )}
+                                </td>
+                              );
+                            })}
+                          </motion.tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {snapshots.length > WINDOW && (
+                      <div className="flex items-center justify-center gap-4 py-4 border-t border-white/5">
+                        <button
+                          onClick={() => setTableEnd(e => Math.max(WINDOW, e - 1))}
+                          disabled={tableStart === 0}
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <ChevronLeft size={16} className="text-white/60" />
+                        </button>
+                        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                          {tableStart + 1}–{tableEnd} / {snapshots.length}
+                        </span>
+                        <button
+                          onClick={() => setTableEnd(e => Math.min(snapshots.length, e + 1))}
+                          disabled={tableEnd === snapshots.length}
+                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                        >
+                          <ChevronRight size={16} className="text-white/60" />
+                        </button>
+                      </div>
+                    )}
               </div>
             </>
           )}
