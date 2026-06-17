@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'motion/react';
 import { Sword, Save, Trash2, Clock, MapPin, CheckCircle2, EyeOff, Eye, Users, X, Trophy } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -9,9 +9,24 @@ import { doc, setDoc, getDocs, getDoc, collection, query, where } from 'firebase
 
 import { CountdownTimer } from '../components/CountdownTimer';
 
+function detectCurrentRound(allMatches: any[], offsetDays = 0): number | string {
+  const now = new Date();
+  now.setDate(now.getDate() + offsetDays);
+  const sorted = [...allMatches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  const next = sorted.find(m => !m.finished && new Date(m.date) > now);
+  if (next) return next.round <= 3 ? next.round : (next.stage ?? next.round);
+
+  const last = [...sorted].reverse().find(m => m.finished);
+  if (last) return last.round <= 3 ? last.round : (last.stage ?? last.round);
+
+  return 1;
+}
+
 export const Betting = () => {
   const { user } = useAuth();
   const [activeRound, setActiveRound] = useState<number | string | 'all'>(1);
+  const roundAutoSet = useRef(false);
   const [matches, setMatches] = useState<any[]>([]);
   const [userBets, setUserBets] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -31,23 +46,29 @@ export const Betting = () => {
       setLoading(true);
       try {
         const matchesData = await soccerService.getLocalMatches();
+
+        let currentRound = activeRound;
+        if (!roundAutoSet.current) {
+          roundAutoSet.current = true;
+          currentRound = detectCurrentRound(matchesData);
+          setActiveRound(currentRound);
+        }
+
         let filtered = matchesData;
-        if (activeRound !== 'all') {
-          if (typeof activeRound === 'number') {
-            filtered = matchesData.filter((m: any) => m.round === activeRound);
+        if (currentRound !== 'all') {
+          if (typeof currentRound === 'number') {
+            filtered = matchesData.filter((m: any) => m.round === currentRound);
           } else {
-            // Map our UI tabs to common API stage names if needed
-            const stageLower = (activeRound as string).toLowerCase();
+            const stageLower = (currentRound as string).toLowerCase();
             filtered = matchesData.filter((m: any) => {
               const matchStage = m.stage?.toLowerCase() || '';
-              // Match our labels (like 'L16') or common names
               if (stageLower === 'l32') return matchStage.includes('32') || matchStage.includes('last_32');
               if (stageLower === 'l16') return matchStage.includes('16') || matchStage.includes('last_16') || matchStage.includes('round_of_16');
               if (stageLower === 'quarters_finals') return matchStage.includes('quarter') || matchStage === 'qf';
               if (stageLower === 'semi_finals') return (matchStage.includes('semi') || matchStage === 'sf') && !matchStage.includes('quarter');
               if (stageLower === 'finals') return (matchStage === 'final' || matchStage === 'finals' || matchStage.includes('third') || matchStage.includes('3rd')) && !matchStage.includes('semi') && !matchStage.includes('quarter');
 
-              return matchStage === stageLower || m.round === activeRound;
+              return matchStage === stageLower || m.round === currentRound;
             });
           }
         }
@@ -162,7 +183,8 @@ export const Betting = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const visibleMatches = hideFinished
+  const allRoundFinished = matches.length > 0 && matches.every(m => m.finished);
+  const visibleMatches = hideFinished && !allRoundFinished
     ? matches.filter(m => {
       const matchDay = new Date(m.date);
       matchDay.setHours(0, 0, 0, 0);
