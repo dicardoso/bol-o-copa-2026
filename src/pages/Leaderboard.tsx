@@ -21,7 +21,7 @@ interface Snapshot {
   entries: RankingEntry[];
 }
 
-const PLAYER_COLORS = ['#f59e0b','#3b82f6','#10b981','#f97316','#8b5cf6','#ec4899','#94a3b8','#14b8a6','#84cc16','#ef4444'];
+const PLAYER_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899', '#94a3b8', '#14b8a6', '#84cc16', '#ef4444'];
 
 const WINDOW = 8;
 
@@ -213,7 +213,7 @@ export const Leaderboard = () => {
     return prev.position - curr.position; // positivo = subiu
   };
 
-if (loading) return <div className="flex items-center justify-center h-64 text-white">Calculando ranking...</div>;
+  if (loading) return <div className="flex items-center justify-center h-64 text-white">Calculando ranking...</div>;
 
   return (
     <div className="space-y-8 pb-20">
@@ -283,10 +283,10 @@ if (loading) return <div className="flex items-center justify-center h-64 text-w
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-white/5">
-                  <th className="px-8 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Pos</th>
-                  <th className="px-4 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest"></th>
-                  <th className="px-8 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Player</th>
-                  <th className="px-8 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-right">Points</th>
+                  <th className="px-4 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Pos</th>
+                  <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest"></th>
+                  <th className="px-3 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Player</th>
+                  <th className="px-3 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-right">Pts</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
@@ -300,36 +300,36 @@ if (loading) return <div className="flex items-center justify-center h-64 text-w
                       transition={{ delay: i * 0.05 }}
                       className="hover:bg-white/[0.02] transition-colors"
                     >
-                      <td className="px-8 py-4 font-black">
+                      <td className="px-4 sm:px-8 py-3 sm:py-4 font-black">
                         <span className={cn(row.pos <= 3 ? 'text-editorial-gold' : 'text-white/20')}>
                           {row.pos.toString().padStart(2, '0')}
                         </span>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-2 sm:px-4 py-3 sm:py-4">
                         {delta === null ? (
                           <Minus size={12} className="text-white/20" />
                         ) : delta > 0 ? (
                           <span className="flex items-center gap-0.5 text-green-400 text-[10px] font-black">
-                            <TrendingUp size={12} /> +{delta}
+                            <TrendingUp size={12} /> <span className="hidden sm:inline">+{delta}</span>
                           </span>
                         ) : delta < 0 ? (
                           <span className="flex items-center gap-0.5 text-red-400 text-[10px] font-black">
-                            <TrendingDown size={12} /> {delta}
+                            <TrendingDown size={12} /> <span className="hidden sm:inline">{delta}</span>
                           </span>
                         ) : (
                           <Minus size={12} className="text-white/40" />
                         )}
                       </td>
-                      <td className="px-8 py-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-sm overflow-hidden">
-                            {row.photoURL ? <img src={row.photoURL} /> : '👤'}
+                      <td className="px-3 sm:px-8 py-3 sm:py-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-white/5 rounded-full flex items-center justify-center text-sm overflow-hidden shrink-0">
+                            {row.photoURL ? <img src={row.photoURL} className="w-full h-full object-cover" /> : '👤'}
                           </div>
-                          <span className="font-bold text-sm">{row.displayName}</span>
+                          <span className="font-bold text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{row.displayName}</span>
                         </div>
                       </td>
-                      <td className="px-8 py-4 text-right">
-                        <span className="font-mono font-bold text-editorial-accent">{row.points}</span>
+                      <td className="px-3 sm:px-8 py-3 sm:py-4 text-right">
+                        <span className="font-mono font-bold text-sm text-editorial-accent">{row.points}</span>
                       </td>
                     </motion.tr>
                   );
@@ -352,13 +352,13 @@ if (loading) return <div className="flex items-center justify-center h-64 text-w
           ) : (
             <>
               {/* Bump chart — variação de posições */}
-              <div className="bg-editorial-navy/40 border border-white/5 rounded-[24px] p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest">Variação de Posições — Top 10</h3>
-                  <div className="flex flex-wrap gap-3">
+              <div className="bg-editorial-navy/40 border border-white/5 rounded-[24px] p-4 sm:p-8">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
+                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest shrink-0">Variação de Posições — Top 10</h3>
+                  <div className="flex flex-wrap gap-2 sm:gap-3">
                     {ranking.slice(0, 10).map((p, i) => (
-                      <span key={p.id} className="flex items-center gap-1.5 text-[10px] font-bold">
-                        <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ background: PLAYER_COLORS[i] }} />
+                      <span key={p.id} className="flex items-center gap-1 text-[10px] font-bold">
+                        <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: PLAYER_COLORS[i] }} />
                         <span style={{ color: PLAYER_COLORS[i] }}>{p.displayName.split(' ')[0]}</span>
                       </span>
                     ))}
@@ -369,77 +369,78 @@ if (loading) return <div className="flex items-center justify-center h-64 text-w
 
               {/* Tabela por jogo */}
               <div className="bg-editorial-navy/40 border border-white/5 rounded-[24px] overflow-hidden">
-                    <table className="w-full text-left">
-                      <thead>
-                        <tr className="bg-white/5">
-                          <th className="px-6 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Player</th>
-                          {visibleCols.map(s => (
-                            <th key={s.matchId} className="px-4 py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-center whitespace-nowrap">
-                              {s.matchLabel}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/5">
-                        {ranking.slice(0, 20).map((player, i) => (
-                          <motion.tr
-                            key={player.id}
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: i * 0.03 }}
-                            className="hover:bg-white/[0.02] transition-colors"
-                          >
-                            <td className="px-6 py-3">
-                              <div className="flex items-center gap-3">
-                                <span className="text-white/20 font-black text-xs w-4">{player.pos}</span>
-                                <div className="w-6 h-6 bg-white/5 rounded-full overflow-hidden">
-                                  {player.photoURL ? <img src={player.photoURL} className="w-full h-full object-cover" /> : null}
-                                </div>
-                                <span className="font-bold text-xs">{player.displayName}</span>
-                              </div>
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-white/5">
+                      <th className="px-3 sm:px-6 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Player</th>
+                      {visibleCols.map(s => (
+                        <th key={s.matchId} className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-center whitespace-nowrap">
+                          <span className="sm:hidden">{s.matchLabel.length > 8 ? s.matchLabel.slice(0, 7) + '…' : s.matchLabel}</span>
+                          <span className="hidden sm:inline">{s.matchLabel}</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {ranking.slice(0, 20).map((player, i) => (
+                      <motion.tr
+                        key={player.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: i * 0.03 }}
+                        className="hover:bg-white/[0.02] transition-colors"
+                      >
+                        <td className="px-3 sm:px-6 py-2 sm:py-3">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            <span className="text-white/20 font-black text-xs w-4 shrink-0">{player.pos}</span>
+                            <div className="w-5 h-5 sm:w-6 sm:h-6 bg-white/5 rounded-full overflow-hidden shrink-0">
+                              {player.photoURL ? <img src={player.photoURL} className="w-full h-full object-cover" /> : null}
+                            </div>
+                            <span className="font-bold text-xs truncate max-w-[70px] sm:max-w-none">{player.displayName.split(' ')[0]}</span>
+                          </div>
+                        </td>
+                        {visibleCols.map((s, vi) => {
+                          const realIdx = tableStart + vi;
+                          const entry = s.entries.find(e => e.userId === player.id);
+                          const prev = realIdx > 0 ? snapshots[realIdx - 1].entries.find(e => e.userId === player.id) : null;
+                          const gained = entry && prev ? entry.points - prev.points : null;
+                          return (
+                            <td key={s.matchId} className="px-2 sm:px-4 py-2 sm:py-3 text-center">
+                              <span className="font-mono font-bold text-xs text-white/70">{entry?.points ?? '—'}</span>
+                              {gained !== null && gained > 0 && (
+                                <span className="block text-[9px] text-green-400 font-black">+{gained}</span>
+                              )}
+                              {entry && (
+                                <span className="block text-[9px] text-white/30 hidden sm:block">#{entry.position}</span>
+                              )}
                             </td>
-                            {visibleCols.map((s, vi) => {
-                              const realIdx = tableStart + vi;
-                              const entry = s.entries.find(e => e.userId === player.id);
-                              const prev = realIdx > 0 ? snapshots[realIdx - 1].entries.find(e => e.userId === player.id) : null;
-                              const gained = entry && prev ? entry.points - prev.points : null;
-                              return (
-                                <td key={s.matchId} className="px-4 py-3 text-center">
-                                  <span className="font-mono font-bold text-xs text-white/70">{entry?.points ?? '—'}</span>
-                                  {gained !== null && gained > 0 && (
-                                    <span className="block text-[9px] text-green-400 font-black">+{gained}</span>
-                                  )}
-                                  {entry && (
-                                    <span className="block text-[9px] text-white/30">#{entry.position}</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </motion.tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {snapshots.length > WINDOW && (
-                      <div className="flex items-center justify-center gap-4 py-4 border-t border-white/5">
-                        <button
-                          onClick={() => setTableEnd(e => Math.max(WINDOW, e - 1))}
-                          disabled={tableStart === 0}
-                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <ChevronLeft size={16} className="text-white/60" />
-                        </button>
-                        <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
-                          {tableStart + 1}–{tableEnd} / {snapshots.length}
-                        </span>
-                        <button
-                          onClick={() => setTableEnd(e => Math.min(snapshots.length, e + 1))}
-                          disabled={tableEnd === snapshots.length}
-                          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                        >
-                          <ChevronRight size={16} className="text-white/60" />
-                        </button>
-                      </div>
-                    )}
+                          );
+                        })}
+                      </motion.tr>
+                    ))}
+                  </tbody>
+                </table>
+                {snapshots.length > WINDOW && (
+                  <div className="flex items-center justify-center gap-4 py-4 border-t border-white/5">
+                    <button
+                      onClick={() => setTableEnd(e => Math.max(WINDOW, e - 1))}
+                      disabled={tableStart === 0}
+                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronLeft size={16} className="text-white/60" />
+                    </button>
+                    <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
+                      {tableStart + 1}–{tableEnd} / {snapshots.length}
+                    </span>
+                    <button
+                      onClick={() => setTableEnd(e => Math.min(snapshots.length, e + 1))}
+                      disabled={tableEnd === snapshots.length}
+                      className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <ChevronRight size={16} className="text-white/60" />
+                    </button>
+                  </div>
+                )}
               </div>
             </>
           )}
