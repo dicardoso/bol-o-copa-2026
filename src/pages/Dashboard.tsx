@@ -277,6 +277,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
                   </h3>
                 </div>
                 <button
+                  type="button" aria-label="Fechar modal"
                   onClick={() => setChartModal(null)}
                   className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
                 >

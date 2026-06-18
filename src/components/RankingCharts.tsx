@@ -114,14 +114,14 @@ export const BumpChart = ({ snapshots, players, tall }: ChartProps) => {
       </svg>
       {snapshots.length > WINDOW && (
         <div className="flex items-center justify-center gap-4 mt-4">
-          <button onClick={() => setWindowEnd(e => Math.max(WINDOW, e - 1))} disabled={!canPrev}
+          <button type="button" aria-label="Ver jogos anteriores" onClick={() => setWindowEnd(e => Math.max(WINDOW, e - 1))} disabled={!canPrev}
             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
             <ChevronLeft size={16} className="text-white/60" />
           </button>
           <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
             {windowStart + 1}–{windowEnd} / {snapshots.length}
           </span>
-          <button onClick={() => setWindowEnd(e => Math.min(snapshots.length, e + 1))} disabled={!canNext}
+          <button type="button" aria-label="Ver próximos jogos" onClick={() => setWindowEnd(e => Math.min(snapshots.length, e + 1))} disabled={!canNext}
             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
             <ChevronRight size={16} className="text-white/60" />
           </button>
@@ -139,7 +139,11 @@ export const PointsChart = ({ snapshots, players, tall }: ChartProps) => {
   const canPrev = windowStart > 0;
   const canNext = windowEnd < snapshots.length;
 
-  if (snapshots.length < 2) return null;
+  if (snapshots.length < 2) return (
+    <p className="text-white/30 text-xs text-center py-8">
+      São necessários pelo menos 2 jogos resolvidos para exibir o gráfico.
+    </p>
+  );
 
   const W = 700, H = tall ? 600 : 320;
   const padL = 52, padR = 100, padT = 20, padB = 36;
@@ -225,14 +229,14 @@ export const PointsChart = ({ snapshots, players, tall }: ChartProps) => {
       </svg>
       {snapshots.length > WINDOW && (
         <div className="flex items-center justify-center gap-4 mt-4">
-          <button onClick={() => setWindowEnd(e => Math.max(WINDOW, e - 1))} disabled={!canPrev}
+          <button type="button" aria-label="Ver jogos anteriores" onClick={() => setWindowEnd(e => Math.max(WINDOW, e - 1))} disabled={!canPrev}
             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
             <ChevronLeft size={16} className="text-white/60" />
           </button>
           <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
             {windowStart + 1}–{windowEnd} / {snapshots.length}
           </span>
-          <button onClick={() => setWindowEnd(e => Math.min(snapshots.length, e + 1))} disabled={!canNext}
+          <button type="button" aria-label="Ver próximos jogos" onClick={() => setWindowEnd(e => Math.min(snapshots.length, e + 1))} disabled={!canNext}
             className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors">
             <ChevronRight size={16} className="text-white/60" />
           </button>
