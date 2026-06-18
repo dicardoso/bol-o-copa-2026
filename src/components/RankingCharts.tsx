@@ -41,11 +41,15 @@ export const BumpChart = ({ snapshots, players, tall }: ChartProps) => {
     <p className="text-white/30 text-xs text-center py-8">São necessários pelo menos 2 jogos resolvidos para exibir o gráfico.</p>
   );
 
+  const activePlayers = players.filter(p =>
+    snapshots.some(s => s.entries.some(e => e.userId === p.id))
+  );
+
   const W = 700, H = tall ? 600 : 320;
   const padL = 100, padR = 100, padT = 20, padB = 36;
   const chartW = W - padL - padR;
   const chartH = H - padT - padB;
-  const maxPos = Math.min(players.length, 10);
+  const maxPos = activePlayers.length;
 
   const xOf = (si: number) => padL + (si / Math.max(visible.length - 1, 1)) * chartW;
   const yOf = (pos: number) => padT + ((pos - 1) / Math.max(maxPos - 1, 1)) * chartH;
@@ -69,7 +73,7 @@ export const BumpChart = ({ snapshots, players, tall }: ChartProps) => {
             {s.matchLabel.length > 12 ? s.matchLabel.slice(0, 11) + '…' : s.matchLabel}
           </text>
         ))}
-        {players.slice(0, 10).map((player, pi) => {
+        {activePlayers.map((player, pi) => {
           const color = PLAYER_COLORS[pi % PLAYER_COLORS.length];
           const positions = visible.map(s => {
             const e = s.entries.find(e => e.userId === player.id);

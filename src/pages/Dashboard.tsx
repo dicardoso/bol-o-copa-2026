@@ -9,7 +9,8 @@ import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { BumpChart, PointsChart, PLAYER_COLORS, type Snapshot } from '../components/RankingCharts';
 
-const DASHBOARD_CHART_PLAYERS = 5;
+const DASHBOARD_CHART_PLAYERS = 5;  // jogadores nos gráficos mini do dashboard
+const MODAL_BUMP_PLAYERS = 15;      // jogadores no gráfico de posições do modal
 
 export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void }) => {
   const { profile } = useAuth();
@@ -287,7 +288,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
 
               {/* Full legend */}
               <div className="flex flex-wrap gap-2 sm:gap-3 mb-6">
-                {ranking.slice(0, chartModal === 'bump' ? 10 : ranking.length).map((p, i) => (
+                {ranking.slice(0, chartModal === 'bump' ? MODAL_BUMP_PLAYERS : ranking.length).map((p, i) => (
                   <span key={p.id} className="flex items-center gap-1 text-[10px] font-bold">
                     <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: PLAYER_COLORS[i % PLAYER_COLORS.length] }} />
                     <span style={{ color: PLAYER_COLORS[i % PLAYER_COLORS.length] }}>{p.displayName.split(' ')[0]}</span>
@@ -296,7 +297,7 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
               </div>
 
               {chartModal === 'bump' ? (
-                <BumpChart snapshots={snapshots} players={ranking.slice(0, 10)} tall />
+                <BumpChart snapshots={snapshots} players={ranking.slice(0, MODAL_BUMP_PLAYERS)} tall />
               ) : (
                 <PointsChart snapshots={snapshots} players={ranking} tall />
               )}
