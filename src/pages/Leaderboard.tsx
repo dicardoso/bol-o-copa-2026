@@ -5,153 +5,9 @@ import { cn } from '../lib/utils';
 import { collection, query, orderBy, limit, getDocs, getCountFromServer, where } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { BumpChart, PointsChart, PLAYER_COLORS, WINDOW, type Snapshot } from '../components/RankingCharts';
 
-interface RankingEntry {
-  userId: string;
-  displayName: string;
-  photoURL: string;
-  points: number;
-  position: number;
-}
-
-interface Snapshot {
-  matchId: string;
-  matchLabel: string;
-  resolvedAt: string;
-  entries: RankingEntry[];
-}
-
-const PLAYER_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899', '#94a3b8', '#14b8a6', '#84cc16', '#ef4444'];
-
-const WINDOW = 8;
-
-interface BumpChartProps {
-  snapshots: Snapshot[];
-  players: { id: string; displayName: string }[];
-}
-
-const BumpChart = ({ snapshots, players }: BumpChartProps) => {
-  const [windowEnd, setWindowEnd] = useState(snapshots.length);
-
-  const windowStart = Math.max(0, windowEnd - WINDOW);
-  const visible = snapshots.slice(windowStart, windowEnd);
-  const canPrev = windowStart > 0;
-  const canNext = windowEnd < snapshots.length;
-
-  if (snapshots.length < 2) return (
-    <p className="text-white/30 text-xs text-center py-8">São necessários pelo menos 2 jogos resolvidos para exibir o gráfico.</p>
-  );
-
-  const W = 700, H = 320;
-  const padL = 100, padR = 100, padT = 20, padB = 36;
-  const chartW = W - padL - padR;
-  const chartH = H - padT - padB;
-  const maxPos = Math.min(players.length, 10);
-
-  const xOf = (si: number) => padL + (si / Math.max(visible.length - 1, 1)) * chartW;
-  const yOf = (pos: number) => padT + ((pos - 1) / Math.max(maxPos - 1, 1)) * chartH;
-
-  return (
-    <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 340 }}>
-        {/* Grid lines */}
-        {Array.from({ length: maxPos }, (_, i) => (
-          <line key={i} x1={padL} x2={W - padR} y1={yOf(i + 1)} y2={yOf(i + 1)}
-            stroke="white" strokeOpacity={0.04} strokeWidth={1} />
-        ))}
-
-        {/* Position labels left */}
-        {Array.from({ length: maxPos }, (_, i) => (
-          <text key={i} x={padL - 10} y={yOf(i + 1) + 4} textAnchor="end"
-            fill="rgba(255,255,255,0.2)" fontSize={10} fontWeight="bold">
-            #{i + 1}
-          </text>
-        ))}
-
-        {/* Match labels bottom */}
-        {visible.map((s, si) => (
-          <text key={s.matchId} x={xOf(si)} y={H - 4} textAnchor="middle"
-            fill="rgba(255,255,255,0.25)" fontSize={9}>
-            {s.matchLabel.length > 12 ? s.matchLabel.slice(0, 11) + '…' : s.matchLabel}
-          </text>
-        ))}
-
-        {/* Player lines */}
-        {players.slice(0, 10).map((player, pi) => {
-          const color = PLAYER_COLORS[pi];
-          const positions = visible.map(s => {
-            const e = s.entries.find(e => e.userId === player.id);
-            return e ? Math.min(e.position, maxPos) : null;
-          });
-
-          const segments: string[] = [];
-          for (let si = 0; si < visible.length; si++) {
-            const pos = positions[si];
-            if (pos === null) continue;
-            const x = xOf(si);
-            const y = yOf(pos);
-            if (segments.length === 0) {
-              segments.push(`M ${x},${y}`);
-            } else {
-              let prevSi = si - 1;
-              while (prevSi >= 0 && positions[prevSi] === null) prevSi--;
-              if (prevSi >= 0 && positions[prevSi] !== null) {
-                const px = xOf(prevSi);
-                const py = yOf(positions[prevSi]!);
-                const mx = (px + x) / 2;
-                segments.push(`C ${mx},${py} ${mx},${y} ${x},${y}`);
-              } else {
-                segments.push(`M ${x},${y}`);
-              }
-            }
-          }
-
-          const d = segments.join(' ');
-          const lastPos = [...positions].reverse().find(p => p !== null);
-          const lastSi = positions.lastIndexOf(lastPos ?? null);
-
-          return (
-            <g key={player.id}>
-              <path d={d} fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" opacity={0.85} />
-              {positions.map((pos, si) => pos !== null && (
-                <circle key={si} cx={xOf(si)} cy={yOf(pos)} r={4} fill={color} stroke="#0f172a" strokeWidth={1.5} />
-              ))}
-              {lastPos !== null && (
-                <text x={xOf(lastSi) + 10} y={yOf(lastPos!) + 4} textAnchor="start"
-                  fill={color} fontSize={10} fontWeight="bold" opacity={0.9}>
-                  #{lastPos} {player.displayName.split(' ')[0]}
-                </text>
-              )}
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Window navigation */}
-      {snapshots.length > WINDOW && (
-        <div className="flex items-center justify-center gap-4 mt-4">
-          <button
-            onClick={() => setWindowEnd(e => Math.max(WINDOW, e - 1))}
-            disabled={!canPrev}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronLeft size={16} className="text-white/60" />
-          </button>
-          <span className="text-[10px] font-bold text-white/30 uppercase tracking-widest">
-            {windowStart + 1}–{windowEnd} / {snapshots.length}
-          </span>
-          <button
-            onClick={() => setWindowEnd(e => Math.min(snapshots.length, e + 1))}
-            disabled={!canNext}
-            className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-          >
-            <ChevronRight size={16} className="text-white/60" />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
+const POINTS_CHART_PLAYERS = 10;
 
 export const Leaderboard = () => {
   const { user, profile } = useAuth();
@@ -189,7 +45,6 @@ export const Leaderboard = () => {
           }
         }
 
-        // Buscar histórico de snapshots
         const histQ = query(collection(db, 'rankingHistory'), orderBy('resolvedAt', 'asc'));
         const histSnap = await getDocs(histQ);
         const loaded = histSnap.docs.map(d => d.data() as Snapshot);
@@ -204,13 +59,12 @@ export const Leaderboard = () => {
     fetchRanking();
   }, [user, profile]);
 
-  // Variação de posição: compara ranking atual com o snapshot anterior ao mais recente
   const positionDelta = (userId: string): number | null => {
     if (snapshots.length < 2) return null;
     const prev = snapshots[snapshots.length - 2].entries.find(e => e.userId === userId);
     const curr = snapshots[snapshots.length - 1].entries.find(e => e.userId === userId);
     if (!prev || !curr) return null;
-    return prev.position - curr.position; // positivo = subiu
+    return prev.position - curr.position;
   };
 
   if (loading) return <div className="flex items-center justify-center h-64 text-white">Calculando ranking...</div>;
@@ -351,20 +205,26 @@ export const Leaderboard = () => {
             </div>
           ) : (
             <>
-              {/* Bump chart — variação de posições */}
-              <div className="bg-editorial-navy/40 border border-white/5 rounded-[24px] p-4 sm:p-8">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
-                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest shrink-0">Variação de Posições — Top 10</h3>
-                  <div className="flex flex-wrap gap-2 sm:gap-3">
-                    {ranking.slice(0, 10).map((p, i) => (
-                      <span key={p.id} className="flex items-center gap-1 text-[10px] font-bold">
-                        <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: PLAYER_COLORS[i] }} />
-                        <span style={{ color: PLAYER_COLORS[i] }}>{p.displayName.split(' ')[0]}</span>
-                      </span>
-                    ))}
-                  </div>
+              {/* Legenda compartilhada */}
+              <div className="flex flex-wrap gap-2 sm:gap-3 px-1">
+                {ranking.slice(0, 10).map((p, i) => (
+                  <span key={p.id} className="flex items-center gap-1 text-[10px] font-bold">
+                    <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: PLAYER_COLORS[i] }} />
+                    <span style={{ color: PLAYER_COLORS[i] }}>{p.displayName.split(' ')[0]}</span>
+                  </span>
+                ))}
+              </div>
+
+              {/* Gráficos lado a lado */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-editorial-navy/40 border border-white/5 rounded-[24px] p-4 sm:p-6">
+                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest mb-4">Posições</h3>
+                  <BumpChart snapshots={snapshots} players={ranking.slice(0, 10)} />
                 </div>
-                <BumpChart snapshots={snapshots} players={ranking.slice(0, 10)} />
+                <div className="bg-editorial-navy/40 border border-white/5 rounded-[24px] p-4 sm:p-6">
+                  <h3 className="text-xs font-black text-white/40 uppercase tracking-widest mb-4">Pontos Acumulados</h3>
+                  <PointsChart snapshots={snapshots} players={ranking.slice(0, POINTS_CHART_PLAYERS)} />
+                </div>
               </div>
 
               {/* Tabela por jogo */}

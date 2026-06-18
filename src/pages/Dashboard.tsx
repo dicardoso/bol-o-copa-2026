@@ -1,19 +1,25 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
-import { Trophy, Clock, Zap, TrendingUp, Coins } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Trophy, Coins, X, Maximize2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NoseCoin } from '../components/NoseCoin';
-import { cn } from '../lib/utils';
 import { soccerService } from '../services/soccerService';
 import { bettingService } from '../services/bettingService';
 import { collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { BumpChart, PointsChart, PLAYER_COLORS, type Snapshot } from '../components/RankingCharts';
+
+const DASHBOARD_CHART_PLAYERS = 5;  // jogadores nos gráficos mini do dashboard
+const MODAL_BUMP_PLAYERS = 15;      // jogadores no gráfico de posições do modal
 
 export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => void }) => {
   const { profile } = useAuth();
   const [nextGames, setNextGames] = useState<any[]>([]);
   const [topPlayers, setTopPlayers] = useState<any[]>([]);
   const [featuredManuBet, setFeaturedManuBet] = useState<any>(null);
+  const [ranking, setRanking] = useState<any[]>([]);
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
+  const [chartModal, setChartModal] = useState<'bump' | 'points' | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -22,22 +28,30 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
           soccerService.getLocalMatches(),
           bettingService.getActiveManuBets()
         ]);
-        
+
         setNextGames(matches.filter((m: any) => !m.finished).slice(0, 3));
-        
+
         if (activeManu && activeManu.length > 0) {
           setFeaturedManuBet(activeManu[0]);
         }
 
-        const q = query(collection(db, 'users'), orderBy('points', 'desc'), limit(3));
+        const q = query(collection(db, 'users'), orderBy('points', 'desc'), limit(50));
         const rankSnap = await getDocs(q);
-        setTopPlayers(rankSnap.docs.map(doc => doc.data()));
+        const rankData = rankSnap.docs.map((doc, i) => ({ pos: i + 1, id: doc.id, ...doc.data() as any }));
+        setTopPlayers(rankData.slice(0, 3));
+        setRanking(rankData);
+
+        const histQ = query(collection(db, 'rankingHistory'), orderBy('resolvedAt', 'asc'));
+        const histSnap = await getDocs(histQ);
+        setSnapshots(histSnap.docs.map(d => d.data() as Snapshot));
       } catch (err) {
         console.error(err);
       }
     };
     loadData();
   }, []);
+
+  const hasCharts = snapshots.length >= 2 && ranking.length > 0;
 
   return (
     <div className="space-y-8 pb-20">
@@ -48,8 +62,8 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
         </div>
         <div className="flex gap-4">
           <div className="bg-white/5 px-6 py-2 rounded-full border border-white/10 flex items-center gap-3">
-             <NoseCoin size={20} />
-             <span className="font-mono font-black text-editorial-gold">{profile?.noseCoins?.toLocaleString() || 0} NC</span>
+            <NoseCoin size={20} />
+            <span className="font-mono font-black text-editorial-gold">{profile?.noseCoins?.toLocaleString() || 0} NC</span>
           </div>
         </div>
       </header>
@@ -60,31 +74,31 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
           <div className="sidebar-card">
             <span className="section-title">Minha Performance</span>
             <div className="space-y-4">
-               <div className="flex justify-between items-end">
-                  <span className="text-sm text-white/60">Pontos</span>
-                  <span className="text-xl font-bold">{profile?.points || 0}</span>
-               </div>
-               <div className="flex justify-between items-center pt-2">
-                  <span className="text-sm text-white/60">Saldo NC</span>
-                  <span className="text-sm font-black text-editorial-gold">{profile?.noseCoins?.toLocaleString()}</span>
-               </div>
+              <div className="flex justify-between items-end">
+                <span className="text-sm text-white/60">Pontos</span>
+                <span className="text-xl font-bold">{profile?.points || 0}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2">
+                <span className="text-sm text-white/60">Saldo NC</span>
+                <span className="text-sm font-black text-editorial-gold">{profile?.noseCoins?.toLocaleString()}</span>
+              </div>
             </div>
           </div>
 
           <div className="sidebar-card">
             <span className="section-title">Top 3 Global</span>
             <div className="space-y-3">
-               {topPlayers.map((player, pos) => (
-                 <div key={player.uid} className="flex items-center gap-3">
-                    <span className="text-xs font-black text-editorial-gold">{(pos+1).toString().padStart(2, '0')}</span>
-                    <div className="w-8 h-8 bg-white/5 rounded-full overflow-hidden">
-                       {player.photoURL ? <img src={player.photoURL} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-editorial-navy" />}
-                    </div>
-                    <span className="text-xs font-bold text-white/80 truncate flex-1">{player.displayName}</span>
-                    <span className="text-xs font-mono font-bold text-white/40">{player.points}</span>
-                 </div>
-               ))}
-               {topPlayers.length === 0 && <p className="text-[10px] text-white/20 italic">Aguardando pontuação...</p>}
+              {topPlayers.map((player, pos) => (
+                <div key={player.id} className="flex items-center gap-3">
+                  <span className="text-xs font-black text-editorial-gold">{(pos + 1).toString().padStart(2, '0')}</span>
+                  <div className="w-8 h-8 bg-white/5 rounded-full overflow-hidden">
+                    {player.photoURL ? <img src={player.photoURL} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-editorial-navy" />}
+                  </div>
+                  <span className="text-xs font-bold text-white/80 truncate flex-1">{player.displayName}</span>
+                  <span className="text-xs font-mono font-bold text-white/40">{player.points}</span>
+                </div>
+              ))}
+              {topPlayers.length === 0 && <p className="text-[10px] text-white/20 italic">Aguardando pontuação...</p>}
             </div>
             <button onClick={() => setActiveTab('leaderboard')} className="w-full text-center text-[10px] uppercase font-black text-white/20 mt-6 hover:text-editorial-gold transition-colors">Ver Ranking Completo</button>
           </div>
@@ -93,13 +107,13 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
         {/* Center Main Panel */}
         <div className="lg:col-span-6 space-y-6">
           <div className="flex items-center justify-between">
-             <h3 className="text-xl font-black tracking-tight italic uppercase">Próximos Jogos</h3>
-             <button onClick={() => setActiveTab('betting')} className="text-[10px] font-mono text-editorial-gold uppercase hover:underline">Ver Todos</button>
+            <h3 className="text-xl font-black tracking-tight italic uppercase">Próximos Jogos</h3>
+            <button onClick={() => setActiveTab('betting')} className="text-[10px] font-mono text-editorial-gold uppercase hover:underline">Ver Todos</button>
           </div>
-          
+
           <div className="grid grid-cols-1 gap-4">
             {nextGames.map((game, i) => (
-              <motion.div 
+              <motion.div
                 key={game.id}
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -111,11 +125,11 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex-1 flex flex-col items-center">
                     <div className="w-12 h-12 mb-1 flex items-center justify-center overflow-hidden">
-                       {game.flagA?.startsWith('http') ? (
-                         <img src={game.flagA} alt={game.teamA} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                       ) : (
-                         <span className="text-3xl">{game.flagA}</span>
-                       )}
+                      {game.flagA?.startsWith('http') ? (
+                        <img src={game.flagA} alt={game.teamA} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="text-3xl">{game.flagA}</span>
+                      )}
                     </div>
                     <span className="font-black text-[10px] uppercase text-center leading-tight">{game.teamA}</span>
                   </div>
@@ -125,11 +139,11 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
                   </div>
                   <div className="flex-1 flex flex-col items-center">
                     <div className="w-12 h-12 mb-1 flex items-center justify-center overflow-hidden">
-                       {game.flagB?.startsWith('http') ? (
-                         <img src={game.flagB} alt={game.teamB} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                       ) : (
-                         <span className="text-3xl">{game.flagB}</span>
-                       )}
+                      {game.flagB?.startsWith('http') ? (
+                        <img src={game.flagB} alt={game.teamB} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      ) : (
+                        <span className="text-3xl">{game.flagB}</span>
+                      )}
                     </div>
                     <span className="font-black text-[10px] uppercase text-center leading-tight">{game.teamB}</span>
                   </div>
@@ -146,50 +160,160 @@ export const Dashboard = ({ setActiveTab }: { setActiveTab: (tab: string) => voi
 
         {/* Right ManuBet Sidebar */}
         <div className="lg:col-span-3 space-y-6">
-           <div className="bg-gradient-to-br from-editorial-navy to-black border-2 border-white/5 rounded-[24px] p-6 relative overflow-hidden group">
-              <div className="flex items-center gap-3 mb-6">
-                 <div className="w-8 h-8 rounded-full bg-editorial-gold flex items-center justify-center font-black text-editorial-navy text-xs">N</div>
-                 <h2 className="text-lg font-bold text-editorial-gold tracking-[1px] uppercase italic">ManuBet</h2>
-              </div>
-              
-              {featuredManuBet ? (
-                <>
-                  <span className="section-title !text-editorial-gold/60">{featuredManuBet.title}</span>
-                  
-                  <div className="space-y-2 mt-4">
-                     {featuredManuBet.options.slice(0, 3).map((opt: any, idx: number) => (
-                       <div 
-                        key={idx} 
-                        onClick={() => setActiveTab('manubet')}
-                        className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5 hover:border-editorial-gold cursor-pointer transition-all"
-                       >
-                          <span className="text-xs font-bold text-white/80">{opt.label}</span>
-                          <span className="text-sm font-black text-editorial-gold">
-                            {bettingService.calculateCurrentOdds(featuredManuBet, opt.label).toFixed(2)}
-                          </span>
-                       </div>
-                     ))}
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-8 opacity-20">
-                  <Coins className="w-12 h-12 mx-auto mb-4" />
-                  <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma oferta ativa</p>
-                </div>
-              )}
+          <div className="bg-gradient-to-br from-editorial-navy to-black border-2 border-white/5 rounded-[24px] p-6 relative overflow-hidden group">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-full bg-editorial-gold flex items-center justify-center font-black text-editorial-navy text-xs">N</div>
+              <h2 className="text-lg font-bold text-editorial-gold tracking-[1px] uppercase italic">ManuBet</h2>
+            </div>
 
-              <div className="mt-8 pt-6 border-t border-white/10 text-center">
-                 <button 
-                  onClick={() => setActiveTab('manubet')}
-                  className="w-full bg-editorial-gold text-editorial-navy font-black py-3 rounded-xl uppercase text-[10px] tracking-widest shadow-lg shadow-editorial-gold/10"
-                 >
-                   {featuredManuBet ? 'Apostar Agora' : 'Ver Todas'}
-                 </button>
+            {featuredManuBet ? (
+              <>
+                <span className="section-title !text-editorial-gold/60">{featuredManuBet.title}</span>
+                <div className="space-y-2 mt-4">
+                  {featuredManuBet.options.slice(0, 3).map((opt: any, idx: number) => (
+                    <div
+                      key={idx}
+                      onClick={() => setActiveTab('manubet')}
+                      className="flex justify-between items-center p-3 bg-white/5 rounded-xl border border-white/5 hover:border-editorial-gold cursor-pointer transition-all"
+                    >
+                      <span className="text-xs font-bold text-white/80">{opt.label}</span>
+                      <span className="text-sm font-black text-editorial-gold">
+                        {bettingService.calculateCurrentOdds(featuredManuBet, opt.label).toFixed(2)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8 opacity-20">
+                <Coins className="w-12 h-12 mx-auto mb-4" />
+                <p className="text-[10px] font-black uppercase tracking-widest">Nenhuma oferta ativa</p>
               </div>
-           </div>
+            )}
+
+            <div className="mt-8 pt-6 border-t border-white/10 text-center">
+              <button
+                onClick={() => setActiveTab('manubet')}
+                className="w-full bg-editorial-gold text-editorial-navy font-black py-3 rounded-xl uppercase text-[10px] tracking-widest shadow-lg shadow-editorial-gold/10"
+              >
+                {featuredManuBet ? 'Apostar Agora' : 'Ver Todas'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Charts Section */}
+      {hasCharts && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-black tracking-tight italic uppercase">Evolução do Ranking</h3>
+            <button onClick={() => setActiveTab('leaderboard')} className="text-[10px] font-mono text-editorial-gold uppercase hover:underline">Ver Completo</button>
+          </div>
+
+          {/* Mini legend */}
+          <div className="flex flex-wrap gap-2 px-1">
+            {ranking.slice(0, DASHBOARD_CHART_PLAYERS).map((p, i) => (
+              <span key={p.id} className="flex items-center gap-1 text-[10px] font-bold">
+                <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: PLAYER_COLORS[i] }} />
+                <span style={{ color: PLAYER_COLORS[i] }}>{p.displayName.split(' ')[0]}</span>
+              </span>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Bump Chart mini */}
+            <button
+              onClick={() => setChartModal('bump')}
+              className="bg-editorial-navy/40 border border-white/5 rounded-[24px] p-4 text-left hover:border-white/20 transition-colors group relative"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black text-white/40 uppercase tracking-widest">Posições</h4>
+                <Maximize2 size={14} className="text-white/20 group-hover:text-editorial-gold transition-colors" />
+              </div>
+              <div className="pointer-events-none">
+                <BumpChart snapshots={snapshots} players={ranking.slice(0, DASHBOARD_CHART_PLAYERS)} />
+              </div>
+            </button>
+
+            {/* Points Chart mini */}
+            <button
+              onClick={() => setChartModal('points')}
+              className="bg-editorial-navy/40 border border-white/5 rounded-[24px] p-4 text-left hover:border-white/20 transition-colors group relative"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-black text-white/40 uppercase tracking-widest">Pontos Acumulados</h4>
+                <Maximize2 size={14} className="text-white/20 group-hover:text-editorial-gold transition-colors" />
+              </div>
+              <div className="pointer-events-none">
+                <PointsChart snapshots={snapshots} players={ranking.slice(0, DASHBOARD_CHART_PLAYERS)} />
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Chart Modal */}
+      <AnimatePresence>
+        {chartModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+            onClick={() => setChartModal(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-slate-950 border border-white/10 rounded-[24px] p-8 w-full max-w-5xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <p className="text-[10px] text-white/40 uppercase tracking-widest font-black mb-1">Evolução do Ranking</p>
+                  <h3 className="text-xl font-black uppercase tracking-tight">
+                    {chartModal === 'bump' ? 'Posições' : 'Pontos Acumulados'}
+                  </h3>
+                </div>
+                <button
+                  type="button" aria-label="Fechar modal"
+                  onClick={() => setChartModal(null)}
+                  className="p-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  <X size={20} className="text-white/60" />
+                </button>
+              </div>
+
+              {/* Full legend */}
+              <div className="flex flex-wrap gap-2 sm:gap-3 mb-6">
+                {ranking.slice(0, chartModal === 'bump' ? MODAL_BUMP_PLAYERS : ranking.length).map((p, i) => (
+                  <span key={p.id} className="flex items-center gap-1 text-[10px] font-bold">
+                    <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: PLAYER_COLORS[i % PLAYER_COLORS.length] }} />
+                    <span style={{ color: PLAYER_COLORS[i % PLAYER_COLORS.length] }}>{p.displayName.split(' ')[0]}</span>
+                  </span>
+                ))}
+              </div>
+
+              {chartModal === 'bump' ? (
+                <BumpChart snapshots={snapshots} players={ranking.slice(0, MODAL_BUMP_PLAYERS)} tall />
+              ) : (
+                <PointsChart snapshots={snapshots} players={ranking} tall />
+              )}
+
+              <div className="mt-6 pt-4 border-t border-white/5 flex justify-center">
+                <button
+                  onClick={() => { setChartModal(null); setActiveTab('leaderboard'); }}
+                  className="text-[10px] font-black uppercase tracking-widest text-editorial-gold hover:underline flex items-center gap-2"
+                >
+                  <Trophy size={12} /> Ver ranking completo
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
-
