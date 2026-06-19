@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Home, Calendar, Trophy, Coins, User, LogOut, Menu, X, Settings, ShieldCheck } from 'lucide-react';
+import { Home, Calendar, Trophy, Coins, User, LogOut, Menu, X, ShieldCheck, BarChart2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { NoseCoin } from './NoseCoin';
 import { cn } from '../lib/utils';
@@ -21,6 +21,7 @@ export const Navbar = ({ activeTab, setActiveTab }: NavbarProps) => {
     { id: 'betting', label: 'Todos os Jogos', icon: Calendar },
     { id: 'leaderboard', label: 'Ranking', icon: Trophy },
     { id: 'manubet', label: 'ManucaBet', icon: Coins },
+    { id: 'stats', label: 'Estatísticas', icon: BarChart2 },
     { id: 'profile', label: 'Perfil', icon: User },
   ];
 

@@ -13,6 +13,7 @@ import { Leaderboard } from './pages/Leaderboard';
 import { ManuBet } from './pages/ManuBet';
 import { Profile } from './pages/Profile';
 import { Admin } from './pages/Admin';
+import { Stats } from './pages/Stats';
 import { Navbar } from './components/Navbar';
 
 function AppContent() {
@@ -43,6 +44,7 @@ function AppContent() {
       case 'leaderboard': return <Leaderboard />;
       case 'manubet': return <ManuBet />;
       case 'profile': return <Profile />;
+      case 'stats': return <Stats />;
       case 'admin': return profile?.isAdmin ? <Admin /> : <Dashboard setActiveTab={setActiveTab} />;
       default: return <Dashboard setActiveTab={setActiveTab} />;
     }
