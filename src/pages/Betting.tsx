@@ -34,6 +34,7 @@ export const Betting = () => {
     bets: { userId: string; displayName: string; photoURL: string; predictedScoreA: number; predictedScoreB: number; pointsEarned?: number }[];
     loading: boolean;
   }>({ isOpen: false, match: null, bets: [], loading: false });
+  const [successToast, setSuccessToast] = useState(false);
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick(t => t + 1), []);
 
@@ -170,6 +171,8 @@ export const Betting = () => {
       const betId = `${user.uid}_${matchId}`;
       await setDoc(doc(db, 'bets', betId), betData, { merge: true });
       setUserBets(prev => ({ ...prev, [matchId]: betData }));
+      setSuccessToast(true);
+      setTimeout(() => setSuccessToast(false), 3000);
     } catch (err) {
       console.error(err);
       alert('Erro ao salvar palpite. Verifique se o jogo já começou.');
@@ -370,6 +373,17 @@ export const Betting = () => {
           Lembre-se: Você pode alterar seus palpites até o início de cada partida.
         </p>
       </div>
+
+      {/* Success Toast */}
+      {successToast && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white text-sm font-bold px-6 py-3 rounded-2xl shadow-xl flex items-center gap-2"
+        >
+          <CheckCircle2 size={16} /> Palpite salvo com sucesso
+        </motion.div>
+      )}
 
       {/* Bets Modal */}
       {betsModal.isOpen && (

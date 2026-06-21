@@ -49,10 +49,10 @@ service cloud.firestore {
     match /bets/{betId} {
       allow get: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin() || matchIsLocked(resource.data.matchId));
       allow create: if isSignedIn() && isOwner(incoming().userId) && isValidBet(incoming())
-                    && !get(/databases/$(database)/documents/matches/$(incoming().matchId)).data.finished;
+                    && !matchIsLocked(incoming().matchId);
       allow update: if isAdmin() || (isSignedIn() && isOwner(existing().userId) && isValidBet(incoming())
                     && incoming().matchId == existing().matchId
-                    && !get(/databases/$(database)/documents/matches/$(existing().matchId)).data.finished);
+                    && !matchIsLocked(existing().matchId));
       allow list: if isSignedIn();
       allow delete: if isAdmin();
     }
