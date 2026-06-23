@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'motion/react';
-import { ShieldCheck, Users, Calendar, Database, Send, Plus, Search, MoreVertical, Edit, Trash, CheckCircle, Loader2, Clock, RefreshCw, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, Users, Calendar, Database, Send, Plus, Search, MoreVertical, Edit, Trash, CheckCircle, Loader2, Clock, RefreshCw, AlertTriangle, ArrowDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { collection, getCountFromServer } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -58,6 +58,7 @@ export const Admin = () => {
     confirming: boolean;
   }>({ isOpen: false, selected: new Set(), confirming: false });
   const matchesRef = useRef<any[]>([]);
+  const firstPendingRef = useRef<HTMLDivElement>(null);
 
   const fetchUsers = async () => {
     setLoadingUsers(true);
@@ -125,6 +126,12 @@ export const Admin = () => {
 
   // Keep ref in sync so polling closure always sees fresh matches
   useEffect(() => { matchesRef.current = matches; }, [matches]);
+
+  useEffect(() => {
+    if (!loadingMatches && firstPendingRef.current) {
+      firstPendingRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [loadingMatches]);
 
   // Poll /api/pending-results while on matches tab
   useEffect(() => {
@@ -478,9 +485,9 @@ export const Admin = () => {
           {activeSubTab === 'matches' && (
             <div className="space-y-6">
               <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <h3 className="text-xl font-bold text-white">Calendário & Resultados</h3>
-                  <div className="flex gap-2 flex-wrap justify-end">
+                  <div className="flex gap-2 flex-wrap">
                     {pendingResults.length > 0 && (
                       <button
                         onClick={openPreviewModal}
@@ -488,6 +495,16 @@ export const Admin = () => {
                       >
                         <AlertTriangle size={16} />
                         {pendingResults.length} resultado{pendingResults.length !== 1 ? 's' : ''} pendente{pendingResults.length !== 1 ? 's' : ''}
+                      </button>
+                    )}
+                    {matches.some(m => !m.finished) && (
+                      <button
+                        onClick={() => firstPendingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                        className="bg-slate-700 hover:bg-slate-600 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2"
+                        title="Ir para o próximo jogo pendente"
+                      >
+                        <ArrowDown size={16} />
+                        Próximo pendente
                       </button>
                     )}
                     <button
@@ -501,7 +518,7 @@ export const Admin = () => {
                     </button>
                     <button
                       onClick={handleSync}
-                      disabled={syncing}
+                      disabled={true}
                       className="bg-green-600 hover:bg-green-500 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2 disabled:opacity-50"
                     >
                       {syncing ? <Loader2 size={16} className="animate-spin" /> : <Database size={16} />}
@@ -518,95 +535,98 @@ export const Admin = () => {
               <div className="grid grid-cols-1 gap-4">
                 {loadingMatches ? <p className="text-white/40 italic">Carregando jogos do banco...</p> :
                   matches.length === 0 ? <p className="text-white/40 italic">Nenhum jogo sincronizado. Use o botão Importar da API.</p> :
-                    matches.map((m) => (
-                      <div key={m.id} className="bg-slate-950 p-6 rounded-3xl border border-slate-800 flex items-center justify-between group">
-                        <div className="flex items-center gap-6">
-                          <div className="flex flex-col items-center gap-2 min-w-[100px]">
-                            <div className="w-12 h-8 bg-slate-800 rounded-md overflow-hidden flex items-center justify-center border border-white/10 shadow-lg">
-                              {m.flagA && m.flagA.length > 5 ? (
-                                <img
-                                  src={m.flagA}
-                                  alt={m.teamA}
-                                  className="w-full h-full object-cover"
-                                  referrerPolicy="no-referrer"
-                                />
-                              ) : (
-                                <span className="text-xl">{m.flagA || '🏳️'}</span>
-                              )}
+                    (() => {
+                      const firstPendingId = matches.find(m => !m.finished)?.id;
+                      return matches.map((m) => (
+                        <div key={m.id} ref={m.id === firstPendingId ? firstPendingRef : null} className="bg-slate-950 p-4 sm:p-6 rounded-3xl border border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 group">
+                          <div className="flex items-start gap-3 sm:gap-6">
+                            <div className="flex flex-col items-center gap-2 min-w-[70px] sm:min-w-[100px]">
+                              <div className="w-10 h-7 sm:w-12 sm:h-8 bg-slate-800 rounded-md overflow-hidden flex items-center justify-center border border-white/10 shadow-lg">
+                                {m.flagA && m.flagA.length > 5 ? (
+                                  <img
+                                    src={m.flagA}
+                                    alt={m.teamA}
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <span className="text-xl">{m.flagA || '🏳️'}</span>
+                                )}
+                              </div>
+                              <span className="font-bold text-white text-xs uppercase tracking-wider">{m.teamA}</span>
                             </div>
-                            <span className="font-bold text-white text-xs uppercase tracking-wider">{m.teamA}</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="number"
-                              min="0"
-                              max="99"
-                              placeholder="0"
-                              className="w-12 bg-black border border-slate-700 rounded-lg p-2 text-center text-white font-black"
-                              defaultValue={m.scoreA}
-                              id={`scoreA-${m.id}`}
-                            />
-                            <span className="text-xl font-black text-slate-700">X</span>
-                            <input
-                              type="number"
-                              min="0"
-                              max="99"
-                              placeholder="0"
-                              className="w-12 bg-black border border-slate-700 rounded-lg p-2 text-center text-white font-black"
-                              defaultValue={m.scoreB}
-                              id={`scoreB-${m.id}`}
-                            />
-                          </div>
-                          <div className="flex flex-col items-center gap-2 min-w-[100px]">
-                            <div className="w-12 h-8 bg-slate-800 rounded-md overflow-hidden flex items-center justify-center border border-white/10 shadow-lg">
-                              {m.flagB && m.flagB.length > 5 ? (
-                                <img
-                                  src={m.flagB}
-                                  alt={m.teamB}
-                                  className="w-full h-full object-cover"
-                                  referrerPolicy="no-referrer"
-                                />
-                              ) : (
-                                <span className="text-xl">{m.flagB || '🏳️'}</span>
-                              )}
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min="0"
+                                max="99"
+                                placeholder="0"
+                                className="w-10 sm:w-12 bg-black border border-slate-700 rounded-lg p-2 text-center text-white font-black"
+                                defaultValue={m.scoreA}
+                                id={`scoreA-${m.id}`}
+                              />
+                              <span className="text-xl font-black text-slate-700">X</span>
+                              <input
+                                type="number"
+                                min="0"
+                                max="99"
+                                placeholder="0"
+                                className="w-10 sm:w-12 bg-black border border-slate-700 rounded-lg p-2 text-center text-white font-black"
+                                defaultValue={m.scoreB}
+                                id={`scoreB-${m.id}`}
+                              />
                             </div>
-                            <span className="font-bold text-white text-xs uppercase tracking-wider">{m.teamB}</span>
+                            <div className="flex flex-col items-center gap-2 min-w-[70px] sm:min-w-[100px]">
+                              <div className="w-10 h-7 sm:w-12 sm:h-8 bg-slate-800 rounded-md overflow-hidden flex items-center justify-center border border-white/10 shadow-lg">
+                                {m.flagB && m.flagB.length > 5 ? (
+                                  <img
+                                    src={m.flagB}
+                                    alt={m.teamB}
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                  />
+                                ) : (
+                                  <span className="text-xl">{m.flagB || '🏳️'}</span>
+                                )}
+                              </div>
+                              <span className="font-bold text-white text-xs uppercase tracking-wider">{m.teamB}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+                            <div className="text-left sm:text-right">
+                              <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">{m.stage?.replace('_', ' ') || 'FASE DE GRUPOS'}</p>
+                              <p className="text-[10px] font-bold text-slate-500 uppercase">{new Date(m.date).toLocaleDateString()} • {new Date(m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                              <p className={cn("text-xs font-black uppercase mt-1", m.finished ? "text-green-500" : "text-yellow-500")}>
+                                {m.finished ? 'ENCERRADO' : 'AGUARDANDO'}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const aVal = (document.getElementById(`scoreA-${m.id}`) as HTMLInputElement).value;
+                                const bVal = (document.getElementById(`scoreB-${m.id}`) as HTMLInputElement).value;
+                                const a = parseInt(aVal) || 0;
+                                const b = parseInt(bVal) || 0;
+                                if (a < 0 || b < 0 || a > 99 || b > 99) {
+                                  alert("O placar máximo permitido é 99!");
+                                  return;
+                                }
+                                setConfirmModal({
+                                  isOpen: true,
+                                  match: m,
+                                  scores: { a, b }
+                                });
+                              }}
+                              className={cn(
+                                "font-black px-4 py-3 rounded-xl transition-all flex items-center gap-2 shrink-0",
+                                m.finished ? "bg-slate-800 text-slate-500" : "bg-yellow-500 text-slate-900 hover:bg-yellow-400"
+                              )}
+                            >
+                              <CheckCircle size={18} /> {m.finished ? 'Recalcular' : 'Lançar'}
+                            </button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-1">{m.stage?.replace('_', ' ') || 'FASE DE GRUPOS'}</p>
-                            <p className="text-[10px] font-bold text-slate-500 uppercase">{new Date(m.date).toLocaleDateString()} • {new Date(m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                            <p className={cn("text-xs font-black uppercase mt-1", m.finished ? "text-green-500" : "text-yellow-500")}>
-                              {m.finished ? 'ENCERRADO / CALCULADO' : 'AGUARDANDO RESULTADO'}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const aVal = (document.getElementById(`scoreA-${m.id}`) as HTMLInputElement).value;
-                              const bVal = (document.getElementById(`scoreB-${m.id}`) as HTMLInputElement).value;
-                              const a = parseInt(aVal) || 0;
-                              const b = parseInt(bVal) || 0;
-                              if (a < 0 || b < 0 || a > 99 || b > 99) {
-                                alert("O placar máximo permitido é 99!");
-                                return;
-                              }
-                              setConfirmModal({
-                                isOpen: true,
-                                match: m,
-                                scores: { a, b }
-                              });
-                            }}
-                            className={cn(
-                              "font-black px-4 py-3 rounded-xl transition-all flex items-center gap-2",
-                              m.finished ? "bg-slate-800 text-slate-500" : "bg-yellow-500 text-slate-900 hover:bg-yellow-400"
-                            )}
-                          >
-                            <CheckCircle size={18} /> {m.finished ? 'Recalcular' : 'Lançar'}
-                          </button>
-                        </div>
-                      </div>
-                    ))
+                      ));
+                    })()
                 }
               </div>
             </div>
