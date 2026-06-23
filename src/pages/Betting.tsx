@@ -390,6 +390,17 @@ export const Betting = () => {
         </p>
       </div>
 
+      {/* Success Toast */}
+      {successToast && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white text-sm font-bold px-6 py-3 rounded-2xl shadow-xl flex items-center gap-2"
+        >
+          <CheckCircle2 size={16} /> Palpite salvo com sucesso
+        </motion.div>
+      )}
+
       {/* Bets Modal */}
       {betsModal.isOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm">
