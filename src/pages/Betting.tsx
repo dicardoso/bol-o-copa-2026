@@ -5,7 +5,7 @@ import { cn } from '../lib/utils';
 import { soccerService } from '../services/soccerService';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
-import { doc, setDoc, getDocs, getDoc, collection, query, where } from 'firebase/firestore';
+import { doc, setDoc, getDocs, getDoc, getCountFromServer, collection, query, where } from 'firebase/firestore';
 
 import { CountdownTimer } from '../components/CountdownTimer';
 
@@ -34,6 +34,7 @@ export const Betting = () => {
     bets: { userId: string; displayName: string; photoURL: string; predictedScoreA: number; predictedScoreB: number; pointsEarned?: number }[];
     loading: boolean;
   }>({ isOpen: false, match: null, bets: [], loading: false });
+  const [betCounts, setBetCounts] = useState<Record<string, number>>({});
   const [successToast, setSuccessToast] = useState(false);
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick(t => t + 1), []);
@@ -72,6 +73,14 @@ export const Betting = () => {
         const roundFullyFinished = filtered.length > 0 && filtered.every((m: any) => m.finished);
         setHideFinished(!roundFullyFinished);
         setMatches(filtered);
+
+        const counts = await Promise.all(
+          filtered.map(async (m: any) => {
+            const snap = await getCountFromServer(query(collection(db, 'bets'), where('matchId', '==', m.id)));
+            return [m.id, snap.data().count] as [string, number];
+          })
+        );
+        setBetCounts(Object.fromEntries(counts));
 
         if (user) {
           const q = query(collection(db, 'bets'), where('userId', '==', user.uid));
@@ -169,8 +178,10 @@ export const Betting = () => {
         createdAt: bet.createdAt || now,
       };
       const betId = `${user.uid}_${matchId}`;
+      const isNew = !userBets[matchId]?.createdAt;
       await setDoc(doc(db, 'bets', betId), betData, { merge: true });
       setUserBets(prev => ({ ...prev, [matchId]: betData }));
+      if (isNew) setBetCounts(prev => ({ ...prev, [matchId]: (prev[matchId] ?? 0) + 1 }));
       setSuccessToast(true);
       setTimeout(() => setSuccessToast(false), 3000);
     } catch (err) {
@@ -244,7 +255,7 @@ export const Betting = () => {
 
       {/* Countdown Warning */}
       <div className="flex items-center justify-center p-3 rounded-xl">
-        <CountdownTimer targetDate="2026-06-22T14:00:00Z" />
+        <CountdownTimer targetDate="2026-06-27T23:00:00Z" />
       </div>
 
       <div className="flex flex-col gap-8 max-w-4xl mx-auto">
@@ -326,6 +337,11 @@ export const Betting = () => {
             <div className="w-full mt-8 pt-6 border-t border-slate-100 flex items-center justify-between flex-wrap gap-3">
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-black block">Status do Jogo</span>
+                {betCounts[match.id] !== undefined && (
+                  <span className="text-[8px] text-slate-400 font-bold block mb-0.5">
+                    {betCounts[match.id]} palpite{betCounts[match.id] !== 1 ? 's' : ''} registrado{betCounts[match.id] !== 1 ? 's' : ''}
+                  </span>
+                )}
                 <span className={cn("font-extrabold text-sm uppercase",
                   match.finished ? "text-red-500" :
                     isMatchLocked(match) ? "text-orange-500" :
