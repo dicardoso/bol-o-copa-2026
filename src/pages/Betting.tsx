@@ -9,13 +9,23 @@ import { doc, setDoc, getDocs, getDoc, collection, query, where } from 'firebase
 
 import { CountdownTimer } from '../components/CountdownTimer';
 
+function stageToRoundKey(stage: string): string {
+  const s = (stage ?? '').toUpperCase();
+  if (s.includes('32')) return 'L32';
+  if (s.includes('16')) return 'L16';
+  if (s.includes('QUARTER')) return 'Quarters_finals';
+  if (s.includes('SEMI')) return 'Semi_finals';
+  if (s.includes('FINAL') || s.includes('THIRD') || s.includes('3RD')) return 'Finals';
+  return stage;
+}
+
 function detectCurrentRound(allMatches: any[]): number | string {
   const now = new Date();
   const sorted = [...allMatches].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const next = sorted.find(m => !m.finished && new Date(m.date) > now);
-  if (next) return next.round <= 3 ? next.round : (next.stage ?? next.round);
+  if (next) return (next.round != null && next.round <= 3) ? next.round : stageToRoundKey(next.stage ?? next.round);
   const last = [...sorted].reverse().find(m => m.finished);
-  if (last) return last.round <= 3 ? last.round : (last.stage ?? last.round);
+  if (last) return (last.round != null && last.round <= 3) ? last.round : stageToRoundKey(last.stage ?? last.round);
   return 1;
 }
 
@@ -244,7 +254,7 @@ export const Betting = () => {
 
       {/* Countdown Warning */}
       <div className="flex items-center justify-center p-3 rounded-xl">
-        <CountdownTimer targetDate="2026-06-27T23:00:00Z" />
+        <CountdownTimer targetDate="2026-07-04T01:30:00Z" />
       </div>
 
       <div className="flex flex-col gap-8 max-w-4xl mx-auto">
