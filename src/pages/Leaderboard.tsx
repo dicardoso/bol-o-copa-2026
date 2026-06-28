@@ -11,11 +11,15 @@ const POINTS_CHART_PLAYERS = 10;
 
 export const Leaderboard = () => {
   const { user, profile } = useAuth();
-  const [tab, setTab] = useState<'geral' | 'evolucao'>('geral');
+  const [tab, setTab] = useState<'geral' | 'grupos' | 'eliminatoria' | 'evolucao'>('geral');
   const [ranking, setRanking] = useState<any[]>([]);
+  const [gruposRanking, setGruposRanking] = useState<any[]>([]);
+  const [eliminationRanking, setEliminationRanking] = useState<any[]>([]);
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [myRank, setMyRank] = useState<number | null>(null);
+  const [myGruposRank, setMyGruposRank] = useState<number | null>(null);
+  const [myElimRank, setMyElimRank] = useState<number | null>(null);
   const [tableEnd, setTableEnd] = useState(0);
   const tableStart = Math.max(0, tableEnd - WINDOW);
   const visibleCols = snapshots.slice(tableStart, tableEnd);
@@ -33,6 +37,18 @@ export const Leaderboard = () => {
         }));
         setRanking(data);
 
+        const gruposRanked = [...data]
+          .map(u => ({ ...u, groupPoints: (u.points ?? 0) - (u.eliminationPoints ?? 0) }))
+          .sort((a, b) => b.groupPoints - a.groupPoints)
+          .map((u, i) => ({ ...u, pos: i + 1 }));
+        setGruposRanking(gruposRanked);
+
+        const elimRanked = [...data]
+          .filter(u => (u.eliminationPoints ?? 0) > 0)
+          .sort((a, b) => (b.eliminationPoints ?? 0) - (a.eliminationPoints ?? 0))
+          .map((u, i) => ({ ...u, pos: i + 1 }));
+        setEliminationRanking(elimRanked);
+
         if (user) {
           const myEntry = data.find(r => r.id === user.uid);
           if (myEntry) {
@@ -43,6 +59,10 @@ export const Leaderboard = () => {
             const countSnapshot = await getCountFromServer(countQ);
             setMyRank(countSnapshot.data().count + 1);
           }
+          const myGruposEntry = gruposRanked.find(r => r.id === user.uid);
+          setMyGruposRank(myGruposEntry?.pos ?? null);
+          const myElimEntry = elimRanked.find(r => r.id === user.uid);
+          setMyElimRank(myElimEntry?.pos ?? null);
         }
 
         const histQ = query(collection(db, 'rankingHistory'), orderBy('resolvedAt', 'asc'));
@@ -78,6 +98,8 @@ export const Leaderboard = () => {
         <div className="flex bg-white/5 p-1 rounded-xl">
           {[
             { id: 'geral', label: 'Geral' },
+            { id: 'grupos', label: 'Grupos' },
+            { id: 'eliminatoria', label: 'Eliminatória' },
             { id: 'evolucao', label: 'Evolução' },
           ].map((f) => (
             <button
@@ -191,6 +213,188 @@ export const Leaderboard = () => {
               </tbody>
             </table>
           </div>
+        </>
+      )}
+
+      {/* ── ABA GRUPOS ── */}
+      {tab === 'grupos' && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="sidebar-card col-span-1 md:col-span-2">
+              <span className="section-title">Top 3 — Fase de Grupos</span>
+              <div className="flex items-center justify-around py-4">
+                {gruposRanking.slice(0, 3).map((item) => (
+                  <div key={item.id} className="flex flex-col items-center">
+                    <div className="relative">
+                      <div className={cn(
+                        'w-16 h-16 rounded-full flex items-center justify-center text-3xl border-4 mb-2 overflow-hidden',
+                        item.pos === 1 ? 'border-editorial-gold bg-editorial-gold/10' :
+                          item.pos === 2 ? 'border-slate-300 bg-slate-300/10' : 'border-amber-600 bg-amber-600/10'
+                      )}>
+                        {item.photoURL ? <img src={item.photoURL} className="w-full h-full object-cover" /> : '👤'}
+                      </div>
+                      <div className="absolute -top-2 -right-2 w-8 h-8 bg-black rounded-full flex items-center justify-center text-xs font-black border border-white/20">
+                        #{item.pos}
+                      </div>
+                    </div>
+                    <span className="font-bold text-sm">{item.displayName}</span>
+                    <span className="text-editorial-gold font-black">{item.groupPoints} pts</span>
+                  </div>
+                ))}
+                {gruposRanking.length === 0 && <p className="text-white/40 italic text-sm">Nenhum palpite pontuado ainda.</p>}
+              </div>
+            </div>
+            <div className="sidebar-card">
+              <span className="section-title">Minha Posição</span>
+              <div className="flex flex-col justify-center h-full">
+                <p className="text-4xl font-black mb-1">{myGruposRank ? `#${myGruposRank}` : '--'}</p>
+                <p className="text-[10px] uppercase font-bold text-white/40 tracking-widest">
+                  {gruposRanking.find(r => r.id === user?.uid)?.groupPoints ?? 0} pts na fase de grupos
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-editorial-navy/40 border border-white/5 rounded-[24px] overflow-hidden shadow-2xl">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-white/5">
+                  <th className="px-4 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Pos</th>
+                  <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest"></th>
+                  <th className="px-3 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Player</th>
+                  <th className="px-3 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-right">Pts Grupos</th>
+                  <th className="px-3 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-right hidden sm:table-cell">Total</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {gruposRanking.map((row, i) => (
+                    <motion.tr
+                      key={row.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="hover:bg-white/[0.02] transition-colors"
+                    >
+                      <td className="px-4 sm:px-8 py-3 sm:py-4 font-black">
+                        <span className={cn(row.pos <= 3 ? 'text-editorial-gold' : 'text-white/20')}>
+                          {row.pos.toString().padStart(2, '0')}
+                        </span>
+                      </td>
+                      <td className="px-2 sm:px-4 py-3 sm:py-4">
+                        <Minus size={12} className="text-white/20" />
+                      </td>
+                      <td className="px-3 sm:px-8 py-3 sm:py-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-white/5 rounded-full flex items-center justify-center text-sm overflow-hidden shrink-0">
+                            {row.photoURL ? <img src={row.photoURL} className="w-full h-full object-cover" /> : '👤'}
+                          </div>
+                          <span className="font-bold text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{row.displayName}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-8 py-3 sm:py-4 text-right">
+                        <span className="font-mono font-bold text-sm text-editorial-accent">{row.groupPoints}</span>
+                      </td>
+                      <td className="px-3 sm:px-8 py-3 sm:py-4 text-right hidden sm:table-cell">
+                        <span className="font-mono text-sm text-white/30">{row.points ?? 0}</span>
+                      </td>
+                    </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ── ABA ELIMINATÓRIA ── */}
+      {tab === 'eliminatoria' && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="sidebar-card col-span-1 md:col-span-2">
+              <span className="section-title">Top 3 — Fase Eliminatória</span>
+              <div className="flex items-center justify-around py-4">
+                {eliminationRanking.slice(0, 3).map((item) => (
+                  <div key={item.pos} className="flex flex-col items-center">
+                    <div className="relative">
+                      <div className={cn(
+                        'w-16 h-16 rounded-full flex items-center justify-center text-3xl border-4 mb-2 overflow-hidden',
+                        item.pos === 1 ? 'border-editorial-gold bg-editorial-gold/10' :
+                          item.pos === 2 ? 'border-slate-300 bg-slate-300/10' : 'border-amber-600 bg-amber-600/10'
+                      )}>
+                        {item.photoURL ? <img src={item.photoURL} className="w-full h-full object-cover" /> : '👤'}
+                      </div>
+                      <div className="absolute -top-2 -right-2 w-8 h-8 bg-black rounded-full flex items-center justify-center text-xs font-black border border-white/20">
+                        #{item.pos}
+                      </div>
+                    </div>
+                    <span className="font-bold text-sm">{item.displayName}</span>
+                    <span className="text-editorial-gold font-black">{item.eliminationPoints} pts</span>
+                  </div>
+                ))}
+                {eliminationRanking.length === 0 && (
+                  <p className="text-white/40 italic text-sm">Nenhum palpite pontuado na fase eliminatória ainda.</p>
+                )}
+              </div>
+            </div>
+            <div className="sidebar-card">
+              <span className="section-title">Minha Posição</span>
+              <div className="flex flex-col justify-center h-full">
+                <p className="text-4xl font-black mb-1">{myElimRank ? `#${myElimRank}` : '--'}</p>
+                <p className="text-[10px] uppercase font-bold text-white/40 tracking-widest">
+                  {(eliminationRanking.find(r => r.id === user?.uid)?.eliminationPoints ?? 0)} pts na eliminatória
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {eliminationRanking.length > 0 && (
+            <div className="bg-editorial-navy/40 border border-white/5 rounded-[24px] overflow-hidden shadow-2xl">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-white/5">
+                    <th className="px-4 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Pos</th>
+                    <th className="px-2 sm:px-4 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest"></th>
+                    <th className="px-3 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest">Player</th>
+                    <th className="px-3 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-right">Pts Elim.</th>
+                    <th className="px-3 sm:px-8 py-3 sm:py-4 text-[10px] font-black text-white/40 uppercase tracking-widest text-right hidden sm:table-cell">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {eliminationRanking.map((row, i) => (
+                    <motion.tr
+                      key={row.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: i * 0.05 }}
+                      className="hover:bg-white/[0.02] transition-colors"
+                    >
+                      <td className="px-4 sm:px-8 py-3 sm:py-4 font-black">
+                        <span className={cn(row.pos <= 3 ? 'text-editorial-gold' : 'text-white/20')}>
+                          {row.pos.toString().padStart(2, '0')}
+                        </span>
+                      </td>
+                      <td className="px-2 sm:px-4 py-3 sm:py-4">
+                        <Minus size={12} className="text-white/20" />
+                      </td>
+                      <td className="px-3 sm:px-8 py-3 sm:py-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
+                          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-white/5 rounded-full flex items-center justify-center text-sm overflow-hidden shrink-0">
+                            {row.photoURL ? <img src={row.photoURL} className="w-full h-full object-cover" /> : '👤'}
+                          </div>
+                          <span className="font-bold text-xs sm:text-sm truncate max-w-[100px] sm:max-w-none">{row.displayName}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-8 py-3 sm:py-4 text-right">
+                        <span className="font-mono font-bold text-sm text-editorial-gold">{row.eliminationPoints ?? 0}</span>
+                      </td>
+                      <td className="px-3 sm:px-8 py-3 sm:py-4 text-right hidden sm:table-cell">
+                        <span className="font-mono text-sm text-white/30">{row.points ?? 0}</span>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { collection, doc, setDoc, getDocs, query, where, orderBy, increment } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, getDoc, query, where, orderBy, increment } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/firestoreErrorHandler';
 
@@ -82,6 +82,8 @@ export const soccerService = {
   async updateMatchScore(matchId: string, scoreA: number, scoreB: number) {
     try {
       const matchRef = doc(db, 'matches', matchId);
+      const matchSnap = await getDoc(matchRef);
+      const isElimination = matchSnap.exists() && matchSnap.data()?.round == null;
       await setDoc(matchRef, {
         scoreA,
         scoreB,
@@ -117,7 +119,9 @@ export const soccerService = {
         // Atualizar perfil do usuário com a diferença
         if (pointDiff !== 0) {
           const userRef = doc(db, 'users', bet.userId);
-          await setDoc(userRef, { points: increment(pointDiff) }, { merge: true });
+          const userUpdate: Record<string, unknown> = { points: increment(pointDiff) };
+          if (isElimination) userUpdate.eliminationPoints = increment(pointDiff);
+          await setDoc(userRef, userUpdate, { merge: true });
         }
       }
       // Snapshot do ranking após resolver o jogo
