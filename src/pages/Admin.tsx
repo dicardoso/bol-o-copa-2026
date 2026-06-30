@@ -144,8 +144,8 @@ export const Admin = () => {
       const newly: PendingResult[] = apiMatches
         .filter(am => am.status === 'FINISHED')
         .map(am => {
-          const scoreA = am.score.fullTime.home ?? 0;
-          const scoreB = am.score.fullTime.away ?? 0;
+          const scoreA = (am.score.regularTime?.home ?? am.score.fullTime.home) ?? 0;
+          const scoreB = (am.score.regularTime?.away ?? am.score.fullTime.away) ?? 0;
           const local = matchesRef.current.find(m => m.id === am.id.toString()) ?? null;
           return { apiMatch: am, localMatch: local, scoreA, scoreB };
         })
@@ -170,8 +170,8 @@ export const Admin = () => {
       const newly: PendingResult[] = apiMatches
         .filter(am => am.status === 'FINISHED')
         .map(am => {
-          const scoreA = am.score.fullTime.home ?? 0;
-          const scoreB = am.score.fullTime.away ?? 0;
+          const scoreA = (am.score.regularTime?.home ?? am.score.fullTime.home) ?? 0;
+          const scoreB = (am.score.regularTime?.away ?? am.score.fullTime.away) ?? 0;
           const local = matchesRef.current.find(m => m.id === am.id.toString()) ?? null;
           return { apiMatch: am, localMatch: local, scoreA, scoreB };
         })
