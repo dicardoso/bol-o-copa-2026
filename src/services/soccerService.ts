@@ -11,7 +11,10 @@ export interface ApiMatch {
   stage: string;
   homeTeam: { name: string; tla: string; crest: string };
   awayTeam: { name: string; tla: string; crest: string };
-  score: { fullTime: { home: number; away: number } };
+  score: {
+    regularTime: { home: number | null; away: number | null } | null;
+    fullTime: { home: number | null; away: number | null };
+  };
 }
 
 export interface Match {
@@ -49,8 +52,8 @@ export const soccerService = {
           date: match.utcDate,
           stage: match.stage,
           round: match.matchday,
-          scoreA: match.score.fullTime.home ?? 0,
-          scoreB: match.score.fullTime.away ?? 0,
+          scoreA: (match.score.regularTime?.home ?? match.score.fullTime.home) ?? 0,
+          scoreB: (match.score.regularTime?.away ?? match.score.fullTime.away) ?? 0,
           finished: match.status === 'FINISHED',
           venue: 'Estádio FIFA'
         }, { merge: true });
